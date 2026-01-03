@@ -1,0 +1,120 @@
+# ===========================================
+# Admin System Application Configuration
+# ===========================================
+quarkus:
+  application:
+    name: admin-system
+    version: 1.0.0-SNAPSHOT
+
+  # HTTP Server
+  http:
+    port: 8080
+
+  # Datasource - PostgreSQL
+  datasource:
+    db-kind: postgresql
+    username: admin
+    password: password
+    jdbc:
+      url: jdbc:postgresql://localhost:5432/admin
+
+  # Jimmer
+  jimmer:
+    active: true
+    show-sql: true
+    pretty-sql: true
+
+  # Redis
+  redis:
+    hosts: redis://localhost:6379
+
+  # Logging - Clean and aligned format
+  log:
+    console:
+      format: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%-35.35c{1.}] (%t) %s%e%n"
+    level: INFO
+    category:
+      "io.quarkus":
+        level: WARN
+      "org.flywaydb":
+        level: INFO
+      "io.github.fausto":
+        level: DEBUG
+      # Suppress noisy logs
+      "io.quarkus.opentelemetry":
+        level: ERROR
+      "io.opentelemetry":
+        level: ERROR
+      "org.apache.pulsar":
+        level: WARN
+
+  # OpenTelemetry - Disabled (no collector available)
+  otel:
+    sdk:
+      disabled: true
+
+  # Flyway
+  flyway:
+    migrate-at-start: true
+    locations: db/migration
+
+  # Jackson
+  jackson:
+    serialization-inclusion: non-null
+
+  # Virtual Threads (Java 21+)
+  virtual-threads:
+    enabled: true
+
+  # Dev Services - Disable all (no Docker required)
+  devservices:
+    enabled: false
+
+  # Pulsar Dev Services - Disabled (pluggable)
+  pulsar:
+    devservices:
+      enabled: false
+
+  # Dev UI
+  dev-ui:
+    enabled: true
+    path: /dev-ui
+
+  # Swagger UI
+  swagger-ui:
+    always-include: true
+    path: /swagger-ui
+
+  # OpenAPI
+  smallrye-openapi:
+    info-title: Admin System API
+    info-version: 1.0.0
+    path: /openapi
+
+# ===========================================
+# JWT Security
+# ===========================================
+mp:
+  jwt:
+    verify:
+      publickey:
+        location: publicKey.pem
+      issuer: https://io.github.faustofan
+
+smallrye:
+  jwt:
+    sign:
+      key:
+        location: privateKey.pem
+# ===========================================
+# Application Custom Config
+# ===========================================
+app:
+  # Pulsar - Pluggable message queue
+  # When enabled, add the following mp.messaging config:
+  # mp.messaging.outgoing.system-events-out.connector=smallrye-pulsar
+  # mp.messaging.outgoing.system-events-out.serviceUrl=pulsar://localhost:6650
+  # mp.messaging.outgoing.system-events-out.topic=persistent://admin/system/system-events
+  # mp.messaging.outgoing.system-events-out.schema=STRING
+  pulsar:
+    enabled: false # Set to true when Pulsar is available
