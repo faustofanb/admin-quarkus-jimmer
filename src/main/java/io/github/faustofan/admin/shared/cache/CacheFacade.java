@@ -9,6 +9,10 @@ import io.github.faustofan.admin.shared.cache.exception.CacheExceptionType;
 import io.github.faustofan.admin.shared.cache.local.LocalCacheManager;
 import io.github.faustofan.admin.shared.cache.redis.RedisBloomFilter;
 import io.github.faustofan.admin.shared.cache.redis.RedisCacheManager;
+import io.github.faustofan.admin.shared.distributed.constants.DistributedConstants;
+import io.github.faustofan.admin.shared.distributed.lock.LockContext;
+import io.github.faustofan.admin.shared.distributed.lock.LockProvider;
+import io.github.faustofan.admin.shared.distributed.lock.RedisLockProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -41,16 +45,19 @@ public class CacheFacade {
     private final RedisCacheManager redisCacheManager;
     private final RedisBloomFilter bloomFilter;
     private final CacheConfig cacheConfig;
+    private final RedisLockProvider lockProvider;
 
     @Inject
     public CacheFacade(LocalCacheManager localCacheManager,
                        RedisCacheManager redisCacheManager,
                        RedisBloomFilter bloomFilter,
-                       CacheConfig cacheConfig) {
+                       CacheConfig cacheConfig,
+                       RedisLockProvider lockProvider) {
         this.localCacheManager = localCacheManager;
         this.redisCacheManager = redisCacheManager;
         this.bloomFilter = bloomFilter;
         this.cacheConfig = cacheConfig;
+        this.lockProvider = lockProvider;
     }
 
     // ===========================
@@ -217,6 +224,103 @@ public class CacheFacade {
         // 清空 Redis（仅删除 admin:* 前缀的键）
         redisCacheManager.deleteByPattern("*");
         logOperation(CacheOperationType.CLEAR, "all");
+    }
+
+    // ===========================
+    // 防击穿操作（带分布式锁）
+    // ===========================
+
+    /**
+     * 带分布式锁的缓存读取或加载（防止缓存击穿）
+     * <p>
+     * 当缓存未命中时，使用分布式锁保护，只允许一个线程加载数据，
+     * 其他线程等待并复用加载结果。
+     * <p>
+     * 适用场景：
+     * <ul>
+     *   <li>热点Key的缓存加载</li>
+     *   <li>数据库压力较大的场景</li>
+     *   <li>缓存失效瞬间的高并发访问</li>
+     * </ul>
+     *
+     * @param key    业务键
+     * @param type   目标类型
+     * @param loader 数据加载器（当缓存未命中时调用）
+     * @param ttl    过期时间（若为 null 使用默认）
+     * @param <T>    类型
+     * @return 缓存值或加载的值
+     */
+    public <T> T getOrLoadWithLock(String key, Class<T> type, Supplier<T> loader, Duration ttl) {
+        String fullKey = buildFullKey(key);
+        
+        // 1. 先尝试从缓存获取
+        Optional<T> cached = get(fullKey, type);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        // 2. 布隆过滤器快速过滤（如果启用）
+        if (cacheConfig.bloomFilter().enabled() && !bloomFilter.mightContain(key, key)) {
+            LOG.debugv("Bloom filter: key definitely not exists: {0}", key);
+            // 直接加载并返回，不使用锁
+            T value = loader.get();
+            put(fullKey, value, ttl);
+            return value;
+        }
+
+        // 3. 缓存未命中，使用分布式锁保护加载过程
+        String lockKey = DistributedConstants.KeyPrefix.CACHE_BREAKDOWN_LOCK + key;
+        
+        Optional<LockContext> lockContextOpt = lockProvider.tryLock(lockKey);
+        if (lockContextOpt.isEmpty()) {
+            // 获取锁失败，再次尝试从缓存获取（可能其他线程已加载完成）
+            LOG.debugv("Failed to acquire lock, retry cache get: {0}", key);
+            Optional<T> retryCache = get(fullKey, type);
+            if (retryCache.isPresent()) {
+                return retryCache.get();
+            }
+            // 仍未命中，降级直接加载
+            LOG.warnv("Lock timeout, fallback to direct load: {0}", key);
+            T value = loader.get();
+            put(fullKey, value, ttl);
+            return value;
+        }
+
+        LockContext lockContext = lockContextOpt.get();
+        try {
+            // 4. 双重检查：获取锁后再次检查缓存
+            Optional<T> doubleCheck = get(fullKey, type);
+            if (doubleCheck.isPresent()) {
+                LOG.debugv("Cache hit after acquiring lock (double check): {0}", key);
+                return doubleCheck.get();
+            }
+
+            // 5. 执行加载
+            LOG.debugv("Loading data with lock protection: {0}", key);
+            T value = loader.get();
+            
+            // 6. 写入缓存
+            put(fullKey, value, ttl);
+            
+            return value;
+
+        } finally {
+            // 7. 释放锁
+            lockProvider.unlock(lockContext);
+        }
+    }
+
+    /**
+     * 带分布式锁的缓存读取或加载（使用默认TTL）
+     *
+     * @param key    业务键
+     * @param type   目标类型
+     * @param loader 数据加载器
+     * @param <T>    类型
+     * @return 缓存值或加载的值
+     */
+    public <T> T getOrLoadWithLock(String key, Class<T> type, Supplier<T> loader) {
+        return getOrLoadWithLock(key, type, loader, null);
     }
 
     // ===========================
