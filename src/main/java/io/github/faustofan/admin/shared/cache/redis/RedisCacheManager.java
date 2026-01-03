@@ -9,7 +9,7 @@ import io.github.faustofan.admin.shared.cache.exception.CacheException;
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.keys.KeyCommands;
 import io.quarkus.redis.datasource.string.StringCommands;
-import io.quarkus.redis.datasource.value.SetArgs;
+import io.quarkus.redis.datasource.string.SetArgs;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -74,7 +74,7 @@ public class RedisCacheManager {
             CacheConfig cacheConfig,
             RedisBloomFilter bloomFilter) {
         this.redisDataSource = redisDataSource;
-        this.stringCommands = redisDataSource.value(String.class, String.class);
+        this.stringCommands = redisDataSource.string(String.class);
         this.keyCommands = redisDataSource.key(String.class);
         this.objectMapper = objectMapper;
         this.cacheConfig = cacheConfig;

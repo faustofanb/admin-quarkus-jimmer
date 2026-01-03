@@ -16,7 +16,8 @@ quarkus:
     username: admin
     password: password
     jdbc:
-      url: jdbc:postgresql://localhost:5432/admin
+      url: jdbc:p6spy:postgresql://localhost:5432/admin
+      driver: com.p6spy.engine.spy.P6SpyDriver
 
   # Jimmer
   jimmer:
@@ -108,13 +109,107 @@ smallrye:
         location: privateKey.pem
 # ===========================================
 # Application Custom Config
+admin:
+  observable:
+    enabled: true
+    log:
+      enabled: true
+      http:
+        enabled: true
+        log-headers: true
+        log-body: true
+        max-body-length: 2000
+        sensitive-headers: Authorization,Cookie,Set-Cookie
+        exclude-patterns: ^/q/.*|^/swagger.*
+        slow-threshold-ms: 3000
+      sql:
+        enabled: true
+        pretty-print: true
+        log-parameters: true
+        log-row-count: true
+        max-length: 5000
+        slow-threshold-ms: 1000
+    metrics:
+      enabled: true
+    trace:
+      enabled: true
+      sample-rate: 0.1
 # ===========================================
 app:
-  # Pulsar - Pluggable message queue
-  # When enabled, add the following mp.messaging config:
-  # mp.messaging.outgoing.system-events-out.connector=smallrye-pulsar
-  # mp.messaging.outgoing.system-events-out.serviceUrl=pulsar://localhost:6650
-  # mp.messaging.outgoing.system-events-out.topic=persistent://admin/system/system-events
-  # mp.messaging.outgoing.system-events-out.schema=STRING
-  pulsar:
-    enabled: false # Set to true when Pulsar is available
+  # ============ Cache Configuration ============
+  # 二级缓存：本地 L1 (Caffeine) + Redis L2
+  cache:
+    enabled: true
+    default-strategy: TWO_LEVEL # LOCAL_ONLY / REDIS_ONLY / TWO_LEVEL / READ_WRITE_THROUGH / WRITE_BEHIND
+    default-ttl: PT1H # 默认 TTL 1 小时
+    null-value-ttl: PT2M # 空值占位 TTL 2 分钟（防穿透）
+    ttl-jitter-enabled: true # TTL 随机抖动（防雪崩）
+    max-ttl-jitter: PT5M # 最大抖动 5 分钟
+
+    bloom-filter:
+      enabled: true # 布隆过滤器（防击穿）
+      expected-insertions: 1000000
+      false-positive-rate: 0.01
+
+    local:
+      enabled: true
+      maximum-size: 20000 # 本地缓存最大条目数
+      expire-after-write: PT10M # 本地缓存默认过期时间
+
+    redis:
+      enabled: true
+      key-prefix: "admin:" # 所有 Redis 键统一前缀
+      timeout: PT5S # Redis 命令超时
+      compression-enabled: false
+      compression-threshold: 1024
+
+  # ============ Distributed Configuration ============
+  # 分布式锁、唯一 ID、幂等检查
+  distributed:
+    enabled: true # 总开关
+    lock:
+      type: REDIS # LOCAL / REDIS / AUTO
+      wait-time: PT10S # 获取锁最大等待时间
+      lease-time: PT30S # 锁租约时间（自动过期）
+      retry-interval: PT50MS # 重试间隔
+    id-generator:
+      type: SNOWFLAKE # 雪花算法
+      datacenter-id: 1 # 数据中心 ID（0~31）
+      worker-id: 1 # 机器 ID（0~31）
+    idempotent:
+      enabled: true # 幂等检查开启
+      ttl: PT1H # 幂等键默认存活时间
+    redis:
+      enabled: true
+      key-prefix: "admin:" # 全局前缀
+
+  # ============ Messaging Configuration ============
+  messaging:
+    enabled: true # 总开关
+    default-channel: LOCAL # 默认使用本地 CDI 事件
+    delivery-mode: FIRE_AND_FORGET # 投递模式
+
+    # 本地通道配置（CDI 事件）
+    local:
+      enabled: true
+      async: true # 使用 fireAsync 异步发布
+      async-timeout: 5s # 异步发布超时时间
+
+    # Pulsar 通道配置（已关闭）
+    pulsar:
+      enabled: false # Pulsar 已关闭
+      service-url: pulsar://localhost:6650
+      tenant: public
+      namespace: default
+      subscription-prefix: admin-
+      send-timeout: 10s
+      batching-enabled: true
+      batch-max-bytes: 131072
+      batch-max-messages: 1000
+      batch-max-delay: 10ms
+
+    # Stream 通道配置（Mutiny 响应式流）
+    stream:
+      enabled: true
+      buffer-size: 128 # 背压缓冲区大小
+      backpressure-strategy: DROP # DROP / LATEST / ERROR

@@ -126,6 +126,18 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-elytron-security-common</artifactId>
         </dependency>
+        <!-- p6spy for SQL logging -->
+        <dependency>
+            <groupId>p6spy</groupId>
+            <artifactId>p6spy</artifactId>
+            <version>3.9.1</version>
+        </dependency>
+        <!-- SQL Formatter for professional SQL pretty-printing -->
+        <dependency>
+            <groupId>com.github.vertical-blank</groupId>
+            <artifactId>sql-formatter</artifactId>
+            <version>2.0.5</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

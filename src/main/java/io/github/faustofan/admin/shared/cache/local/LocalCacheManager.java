@@ -1,19 +1,16 @@
 package io.github.faustofan.admin.shared.cache.local;
 
 import io.github.faustofan.admin.shared.cache.config.CacheConfig;
-import io.github.faustofan.admin.shared.cache.constants.CacheConstants;
 import io.github.faustofan.admin.shared.cache.constants.CacheOperationType;
-import io.github.faustofan.admin.shared.cache.exception.CacheException;
 import io.quarkus.cache.Cache;
 import io.quarkus.cache.CacheManager;
-import io.quarkus.cache.CacheResult;
+import io.quarkus.cache.CaffeineCache;
+import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
 /**
@@ -91,18 +88,15 @@ public class LocalCacheManager {
                 return Optional.empty();
             }
 
-            Cache cache = cacheOpt.get();
-            CompletionStage<T> stage = cache.getIfPresent(key);
-            if (stage == null) {
-                logOperation(CacheOperationType.MISS, cacheName, key);
-                return Optional.empty();
-            }
+            // Using CaffeineCache for getIfPresent
+            Object value = cacheOpt.get().as(CaffeineCache.class).getIfPresent(key).join();
 
-            T value = stage.toCompletableFuture().join();
             if (value != null) {
                 logOperation(CacheOperationType.L1_HIT, cacheName, key);
+                return Optional.of((T) value);
             }
-            return Optional.ofNullable(value);
+            logOperation(CacheOperationType.MISS, cacheName, key);
+            return Optional.empty();
 
         } catch (Exception e) {
             LOG.warnv(e, "Failed to get from local cache: {0}/{1}", cacheName, key);
@@ -132,17 +126,15 @@ public class LocalCacheManager {
                 return loader.get();
             }
 
-            Cache cache = cacheOpt.get();
-            CompletableFuture<T> future = (CompletableFuture<T>) cache.get(key, k -> {
+            Object value = cacheOpt.get().get(key, k -> {
                 logOperation(CacheOperationType.MISS, cacheName, key);
                 return loader.get();
-            }).toCompletableFuture();
+            }).await().indefinitely();
 
-            T value = future.join();
             if (value != null) {
                 logOperation(CacheOperationType.L1_HIT, cacheName, key);
             }
-            return value;
+            return (T) value;
 
         } catch (Exception e) {
             LOG.warnv(e, "Failed to get or load from local cache, falling back to loader: {0}/{1}", cacheName, key);
@@ -160,34 +152,29 @@ public class LocalCacheManager {
      * @return 异步缓存值
      */
     @SuppressWarnings("unchecked")
-    public <T> CompletableFuture<Optional<T>> getAsync(String cacheName, String key, Class<T> type) {
+    public <T> Uni<Optional<T>> getAsync(String cacheName, String key, Class<T> type) {
         if (!isEnabled()) {
-            return CompletableFuture.completedFuture(Optional.empty());
+            return Uni.createFrom().item(Optional.empty());
         }
 
         try {
             Optional<Cache> cacheOpt = cacheManager.getCache(cacheName);
             if (cacheOpt.isEmpty()) {
-                return CompletableFuture.completedFuture(Optional.empty());
+                return Uni.createFrom().item(Optional.empty());
             }
 
-            Cache cache = cacheOpt.get();
-            CompletionStage<T> stage = cache.getIfPresent(key);
-            if (stage == null) {
-                return CompletableFuture.completedFuture(Optional.empty());
-            }
-
-            return stage.toCompletableFuture()
-                    .thenApply(value -> {
+            return Uni.createFrom().completionStage(cacheOpt.get().as(CaffeineCache.class).getIfPresent(key))
+                    .map(value -> {
                         if (value != null) {
                             logOperation(CacheOperationType.L1_HIT, cacheName, key);
+                            return Optional.of((T) value);
                         }
-                        return Optional.ofNullable(value);
+                        return Optional.<T>empty();
                     });
 
         } catch (Exception e) {
             LOG.warnv(e, "Failed to async get from local cache: {0}/{1}", cacheName, key);
-            return CompletableFuture.completedFuture(Optional.empty());
+            return Uni.createFrom().item(Optional.empty());
         }
     }
 
@@ -218,9 +205,17 @@ public class LocalCacheManager {
                 return;
             }
 
-            Cache cache = cacheOpt.get();
             // 通过get+loader方式写入缓存
-            cache.get(key, k -> value).toCompletableFuture().join();
+            // 注意：如果key已存在，get不会覆盖。若需强制覆盖，应先invalidate
+            // 但考虑到 put 语义，通常期望覆盖。
+            // Quarkus Cache API 无直接 put，invalidate + get 可能会有并发问题但在此场景下通常接受。
+            // 或者使用 Caffeine 原始 API (如果暴露)
+            // 这里维持原有逻辑（虽然原逻辑 get(k, v) 也是如果不存才写入）
+            
+            Cache cache = cacheOpt.get();
+            cache.invalidate(key).await().indefinitely();
+            cache.get(key, k -> value).await().indefinitely();
+            
             logOperation(CacheOperationType.PUT, cacheName, key);
 
         } catch (Exception e) {
@@ -249,7 +244,7 @@ public class LocalCacheManager {
                 return;
             }
 
-            cacheOpt.get().invalidate(key).toCompletableFuture().join();
+            cacheOpt.get().invalidate(key).await().indefinitely();
             logOperation(CacheOperationType.DELETE, cacheName, key);
 
         } catch (Exception e) {
@@ -273,7 +268,7 @@ public class LocalCacheManager {
                 return;
             }
 
-            cacheOpt.get().invalidateAll().toCompletableFuture().join();
+            cacheOpt.get().invalidateAll().await().indefinitely();
             logOperation(CacheOperationType.CLEAR, cacheName, "*");
 
         } catch (Exception e) {
