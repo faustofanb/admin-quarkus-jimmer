@@ -205,4 +205,300 @@ quarkus.log.category."io.github.faustofan.admin.shared".level=DEBUG
 
 ---
 
+## 方法级缓存注解
+
+为了简化业务开发，我们提供了一套声明式缓存注解，无需手动调用 `CacheFacade`，只需在方法上添加注解即可自动完成缓存操作。
+
+### 注解概览
+
+| 注解 | 说明 | 适用场景 |
+|------|------|----------|
+| `@Cacheable` | 先查缓存，命中则返回，未命中则执行方法并缓存结果 | 查询类方法 |
+| `@CacheEvict` | 清除缓存 | 删除、更新操作 |
+| `@CachePut` | 始终执行方法，并将结果放入缓存 | 保存、更新操作 |
+| `@Caching` | 组合多个缓存操作 | 复杂场景（同时更新多个缓存） |
+
+---
+
+### @Cacheable 使用示例
+
+```java
+import io.github.faustofan.admin.shared.cache.annotation.Cacheable;
+import io.github.faustofan.admin.shared.cache.constants.CacheStrategy;
+
+@ApplicationScoped
+public class UserService {
+
+    @Inject
+    UserRepository userRepository;
+
+    // 基础用法：根据 ID 缓存用户
+    @Cacheable(key = "'user:' + #id", ttl = "PT1H")
+    public User findById(Long id) {
+        return userRepository.findById(id);
+    }
+
+    // 使用命名空间和参数名
+    @Cacheable(
+        cacheName = "user",
+        key = "#username",
+        ttl = "PT30M"
+    )
+    public User findByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+
+    // 条件缓存：只有 ID > 0 时才缓存
+    @Cacheable(
+        key = "'user:' + #id",
+        condition = "#id > 0",
+        unless = "#result == null"
+    )
+    public User findByIdWithCondition(Long id) {
+        return userRepository.findById(id);
+    }
+
+    // 启用分布式锁保护（防止缓存击穿）
+    @Cacheable(
+        key = "'hotspot:user:' + #id",
+        lockProtection = true,
+        ttl = "PT10M"
+    )
+    public User findHotspotUser(Long id) {
+        return userRepository.findById(id);
+    }
+
+    // 使用对象属性作为 Key
+    @Cacheable(key = "'user:' + #query.tenantId + ':' + #query.username")
+    public User findByQuery(UserQuery query) {
+        return userRepository.findByQuery(query);
+    }
+}
+```
+
+**注解属性说明：**
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `key` | String | 自动生成 | 缓存Key表达式，支持 SpEL |
+| `cacheName` | String | "" | 缓存命名空间 |
+| `ttl` | String | 配置默认值 | 过期时间（ISO-8601 格式） |
+| `strategy` | CacheStrategy | TWO_LEVEL | 缓存策略 |
+| `condition` | String | "" | 缓存条件表达式 |
+| `unless` | String | "" | 结果排除条件 |
+| `lockProtection` | boolean | false | 是否启用分布式锁 |
+| `cacheNullValue` | boolean | true | 是否缓存空值 |
+
+---
+
+### @CacheEvict 使用示例
+
+```java
+import io.github.faustofan.admin.shared.cache.annotation.CacheEvict;
+
+@ApplicationScoped
+public class UserService {
+
+    // 删除单个缓存
+    @CacheEvict(key = "'user:' + #id")
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id);
+    }
+
+    // 更新时清除缓存
+    @CacheEvict(key = "'user:' + #user.id")
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
+
+    // 清除整个命名空间的缓存
+    @CacheEvict(cacheName = "user", allEntries = true)
+    public void clearAllUserCache() {
+        // 批量操作...
+    }
+
+    // 方法执行前清除（用于特殊场景）
+    @CacheEvict(
+        key = "'order:' + #orderId",
+        beforeInvocation = true
+    )
+    public void processOrder(Long orderId) {
+        // 先清除缓存，再处理订单
+    }
+
+    // 条件清除
+    @CacheEvict(
+        key = "'user:' + #id",
+        condition = "#force == true"
+    )
+    public void refreshUser(Long id, boolean force) {
+        // ...
+    }
+}
+```
+
+**注解属性说明：**
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `key` | String | "" | 要清除的缓存Key |
+| `cacheName` | String | "" | 缓存命名空间 |
+| `allEntries` | boolean | false | 是否清除整个命名空间 |
+| `beforeInvocation` | boolean | false | 是否在方法执行前清除 |
+| `condition` | String | "" | 清除条件表达式 |
+
+---
+
+### @CachePut 使用示例
+
+```java
+import io.github.faustofan.admin.shared.cache.annotation.CachePut;
+
+@ApplicationScoped
+public class UserService {
+
+    // 更新用户时同步更新缓存
+    @CachePut(key = "'user:' + #user.id")
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
+
+    // 创建用户时写入缓存（使用返回值的 ID）
+    @CachePut(
+        key = "'user:' + #result.id",
+        condition = "#result != null"
+    )
+    public User createUser(UserRequest request) {
+        User user = convertToUser(request);
+        return userRepository.save(user);
+    }
+
+    // 不缓存 null 结果
+    @CachePut(
+        key = "'user:' + #id",
+        cacheNullValue = false
+    )
+    public User refreshUser(Long id) {
+        return userRepository.findById(id);
+    }
+}
+```
+
+---
+
+### @Caching 组合使用示例
+
+```java
+import io.github.faustofan.admin.shared.cache.annotation.*;
+
+@ApplicationScoped
+public class UserService {
+
+    // 更新用户时：更新主缓存，清除关联缓存
+    @Caching(
+        put = {
+            @CachePut(key = "'user:' + #result.id")
+        },
+        evict = {
+            @CacheEvict(key = "'user:username:' + #user.username"),
+            @CacheEvict(key = "'user:email:' + #user.email")
+        }
+    )
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
+
+    // 删除用户时清除多个相关缓存
+    @Caching(evict = {
+        @CacheEvict(key = "'user:' + #userId"),
+        @CacheEvict(key = "'user:roles:' + #userId"),
+        @CacheEvict(key = "'user:permissions:' + #userId")
+    })
+    public void deleteUser(Long userId) {
+        userRepository.deleteById(userId);
+    }
+
+    // 批量查询：缓存多个 Key
+    @Caching(cacheable = {
+        @Cacheable(key = "'tenant:' + #tenantId + ':users'"),
+        @Cacheable(cacheName = "user-list", key = "#tenantId")
+    })
+    public List<User> findByTenantId(Long tenantId) {
+        return userRepository.findByTenantId(tenantId);
+    }
+}
+```
+
+---
+
+### SpEL 表达式语法
+
+缓存注解中的 `key`、`condition`、`unless` 属性支持简化版 SpEL 表达式：
+
+| 表达式 | 说明 | 示例 |
+|--------|------|------|
+| `#paramName` | 方法参数名 | `#id`, `#username` |
+| `#p0`, `#p1` | 参数索引 | `#p0`, `#p1` |
+| `#result` | 方法返回值 | `#result.id` |
+| `#param.property` | 参数属性 | `#user.id`, `#query.name` |
+| 字符串拼接 | 使用 `+` 连接 | `'user:' + #id` |
+| 条件判断 | 比较运算符 | `#id > 0`, `#name != null` |
+
+**示例：**
+
+```java
+// 使用参数名
+@Cacheable(key = "'user:' + #id")
+
+// 使用参数索引
+@Cacheable(key = "'user:' + #p0")
+
+// 使用参数属性
+@Cacheable(key = "'user:' + #request.userId")
+
+// 使用返回值属性（仅 @CachePut 和 unless 中可用）
+@CachePut(key = "'user:' + #result.id")
+
+// 条件表达式
+@Cacheable(key = "'user:' + #id", condition = "#id > 0")
+
+// 排除 null 结果
+@Cacheable(key = "'user:' + #id", unless = "#result == null")
+```
+
+---
+
+### 注解 vs 编程式 API
+
+| 场景 | 推荐方式 | 说明 |
+|------|----------|------|
+| 简单的 CRUD 缓存 | `@Cacheable` / `@CacheEvict` | 声明式，代码简洁 |
+| 复杂的缓存逻辑 | `CacheFacade` | 完全控制缓存流程 |
+| 需要动态 Key 生成 | `CacheFacade` | 运行时构建 Key |
+| 批量缓存操作 | `CacheFacade` | 更高效的批量处理 |
+| 事务性缓存更新 | `CacheFacade` | 与业务事务协调 |
+
+> **最佳实践**：Service 层的标准 CRUD 使用注解，复杂业务逻辑使用 `CacheFacade`。
+
+---
+
+### 编译配置
+
+为了让 SpEL 表达式能够正确解析参数名，需要在编译时保留参数名信息：
+
+**Maven 配置：**
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+        <compilerArgs>
+            <arg>-parameters</arg>
+        </compilerArgs>
+    </configuration>
+</plugin>
+```
+
+---
 
