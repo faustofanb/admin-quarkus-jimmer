@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/java:25
+FROM mcr.microsoft.com/devcontainers/java:21
 
 # Install Docker CLI manually to avoid feature build failures
 RUN apt-get update && \

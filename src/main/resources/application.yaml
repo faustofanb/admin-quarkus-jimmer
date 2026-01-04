@@ -213,3 +213,104 @@ app:
       enabled: true
       buffer-size: 128 # 背压缓冲区大小
       backpressure-strategy: DROP # DROP / LATEST / ERROR
+
+  # 可用性基础设施配置示例
+  availability:
+    # 是否启用可用性保护
+    enabled: true
+
+    # ===========================
+    # 限流配置
+    # ===========================
+    rate-limit:
+      # 是否启用限流
+      enabled: true
+      # 限流算法: FIXED_WINDOW, SLIDING_WINDOW, TOKEN_BUCKET, LEAKY_BUCKET, CONCURRENT
+      algorithm: SLIDING_WINDOW
+      # 默认每窗口允许的请求数
+      default-permits: 100
+      # 默认时间窗口
+      default-window: PT1S
+      # 最小请求间隔（0表示不限制）
+      min-spacing: PT0S
+      # 是否使用分布式限流（Redis）
+      distributed: false
+      # 分布式限流同步间隔
+      sync-interval: PT1S
+
+    # ===========================
+    # 熔断器配置
+    # ===========================
+    circuit-breaker:
+      # 是否启用熔断器
+      enabled: true
+      # 失败率阈值（0.0-1.0），超过此值则打开熔断器
+      failure-ratio: 0.5
+      # 请求量阈值（用于计算失败率的最小请求数）
+      request-volume-threshold: 20
+      # 熔断延迟时间（从 OPEN 状态到 HALF_OPEN 状态的等待时间）
+      delay: PT5S
+      # 成功阈值（半开状态需要成功的请求数才能关闭熔断器）
+      success-threshold: 5
+      # 滚动窗口大小
+      rolling-window: 10
+      # 失败时应跳过的异常类型（逗号分隔的全限定类名）
+      skip-on: ""
+      # 应视为失败的异常类型（逗号分隔的全限定类名）
+      fail-on: ""
+
+    # ===========================
+    # 重试配置
+    # ===========================
+    retry:
+      # 是否启用重试
+      enabled: true
+      # 最大重试次数
+      max-retries: 3
+      # 重试延迟
+      delay: PT0.2S
+      # 重试策略: FIXED, EXPONENTIAL, FIBONACCI, RANDOM, IMMEDIATE
+      strategy: EXPONENTIAL
+      # 抖动时间（随机增加的延迟时间，避免重试风暴）
+      jitter: PT0.05S
+      # 最大延迟时间
+      max-delay: PT2S
+      # 应重试的异常类型（逗号分隔的全限定类名）
+      retry-on: ""
+      # 不应重试的异常类型（逗号分隔的全限定类名）
+      abort-on: ""
+
+    # ===========================
+    # 超时配置
+    # ===========================
+    timeout:
+      # 是否启用超时
+      enabled: true
+      # 默认超时时间
+      default-duration: PT5S
+      # 是否启用超时指标收集
+      metrics-enabled: true
+
+    # ===========================
+    # 隔离舱配置
+    # ===========================
+    bulkhead:
+      # 是否启用隔离舱
+      enabled: true
+      # 最大并发调用数
+      max-concurrent-calls: 10
+      # 等待任务队列大小
+      waiting-task-queue: 10
+      # 等待超时（0表示不等待，直接拒绝）
+      wait-timeout: PT0S
+
+    # ===========================
+    # 降级配置
+    # ===========================
+    degradation:
+      # 是否启用降级
+      enabled: true
+      # 全局降级开关（谨慎使用）
+      force-degraded: false
+      # 降级模式下的超时时间
+      degraded-timeout: PT1S
