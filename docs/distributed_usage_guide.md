@@ -219,4 +219,241 @@ quarkus:
 
 ---
 
+## 声明式注解
+
+为了简化业务开发，我们提供了一套声明式注解，无需手动调用 `DistributedFacade`，只需在方法上添加注解即可自动完成幂等检查和分布式锁操作。
+
+### 注解概览
+
+| 注解 | 说明 | 适用场景 |
+|------|------|----------|
+| `@Idempotent` | 幂等检查，防止重复请求 | 创建订单、支付提交等 |
+| `@DistributedLock` | 分布式锁保护 | 并发更新、资源竞争 |
+
+---
+
+### @Idempotent 幂等注解
+
+```java
+import io.github.faustofan.admin.shared.distributed.annotation.Idempotent;
+import io.github.faustofan.admin.shared.distributed.idempotent.IdempotentStrategy;
+
+@ApplicationScoped
+public class OrderService {
+
+    // 基础用法：基于请求参数的幂等
+    @Idempotent(key = "'order:create:' + #request.orderId")
+    public Order createOrder(OrderRequest request) {
+        return orderRepository.save(request);
+    }
+
+    // 基于 Token 的幂等
+    @Idempotent(
+        key = "#token",
+        strategy = IdempotentStrategy.TOKEN,
+        ttl = "PT30M"
+    )
+    public void submitPayment(String token, PaymentRequest request) {
+        paymentService.submit(request);
+    }
+
+    // 自定义重复请求处理
+    @Idempotent(
+        key = "'user:update:' + #userId",
+        message = "请勿重复提交用户更新请求",
+        throwOnDuplicate = true
+    )
+    public User updateUser(Long userId, UserRequest request) {
+        return userService.update(userId, request);
+    }
+
+    // 条件幂等：仅对金额大于0的请求检查
+    @Idempotent(
+        key = "'refund:' + #orderId",
+        condition = "#amount > 0",
+        ttl = "PT1H"
+    )
+    public void refundOrder(Long orderId, BigDecimal amount) {
+        refundService.process(orderId, amount);
+    }
+
+    // 失败时移除标记，允许重试
+    @Idempotent(
+        key = "'export:' + #reportId",
+        removeOnFailure = true
+    )
+    public Report exportReport(Long reportId) {
+        return reportService.export(reportId);
+    }
+}
+```
+
+**注解属性说明：**
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `key` | String | 自动生成 | 幂等Key表达式，支持 SpEL |
+| `strategy` | IdempotentStrategy | PARAM | 幂等策略 |
+| `ttl` | String | 配置默认值 | 过期时间（ISO-8601 格式） |
+| `throwOnDuplicate` | boolean | true | 重复请求是否抛出异常 |
+| `message` | String | "重复请求..." | 重复请求时的错误消息 |
+| `removeOnFailure` | boolean | true | 执行失败是否移除标记 |
+| `condition` | String | "" | 幂等检查条件表达式 |
+| `prefix` | String | "" | Key前缀 |
+
+---
+
+### @DistributedLock 分布式锁注解
+
+```java
+import io.github.faustofan.admin.shared.distributed.annotation.DistributedLock;
+import io.github.faustofan.admin.shared.distributed.constants.LockType;
+
+@ApplicationScoped
+public class InventoryService {
+
+    // 基础用法：保护库存扣减
+    @DistributedLock(key = "'inventory:deduct:' + #productId")
+    public void deductInventory(Long productId, int quantity) {
+        inventoryRepository.deduct(productId, quantity);
+    }
+
+    // 自定义等待时间和租约时间
+    @DistributedLock(
+        key = "'user:update:' + #userId",
+        waitTime = "PT5S",
+        leaseTime = "PT30S"
+    )
+    public User updateUser(Long userId, UserRequest request) {
+        return userService.update(userId, request);
+    }
+
+    // 使用本地锁（单实例场景）
+    @DistributedLock(
+        key = "'report:generate:' + #reportId",
+        type = LockType.LOCAL
+    )
+    public Report generateReport(Long reportId) {
+        return reportService.generate(reportId);
+    }
+
+    // 获取锁失败时不抛异常（静默失败）
+    @DistributedLock(
+        key = "'task:' + #taskId",
+        throwOnFailure = false
+    )
+    public void processTask(Long taskId) {
+        // 获取锁失败时直接返回，不执行
+        taskService.process(taskId);
+    }
+
+    // 条件锁：仅对 VIP 用户加锁
+    @DistributedLock(
+        key = "'vip:order:' + #userId",
+        condition = "#isVip == true",
+        waitTime = "PT10S"
+    )
+    public Order createVipOrder(Long userId, boolean isVip, OrderRequest request) {
+        return orderService.create(request);
+    }
+
+    // 使用参数属性作为锁Key
+    @DistributedLock(key = "'account:' + #transfer.fromAccountId + ':' + #transfer.toAccountId")
+    public void transfer(TransferRequest transfer) {
+        accountService.transfer(transfer);
+    }
+}
+```
+
+**注解属性说明：**
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `key` | String | 自动生成 | 锁Key表达式，支持 SpEL |
+| `type` | LockType | AUTO | 锁类型（LOCAL/REDIS/AUTO） |
+| `waitTime` | String | 配置默认值 | 等待获取锁的最大时间 |
+| `leaseTime` | String | 配置默认值 | 锁的租约时间 |
+| `throwOnFailure` | boolean | true | 获取锁失败是否抛出异常 |
+| `message` | String | "获取锁失败..." | 失败时的错误消息 |
+| `prefix` | String | "" | Key前缀 |
+| `condition` | String | "" | 锁条件表达式 |
+
+---
+
+### SpEL 表达式语法
+
+注解中的 `key`、`condition` 属性支持简化版 SpEL 表达式：
+
+| 表达式 | 说明 | 示例 |
+|--------|------|------|
+| `#paramName` | 方法参数名 | `#userId`, `#request` |
+| `#p0`, `#p1` | 参数索引 | `#p0`, `#p1` |
+| `#param.property` | 参数属性 | `#request.orderId`, `#user.id` |
+| 字符串拼接 | 使用 `+` 连接 | `'order:' + #id` |
+| 条件判断 | 比较运算符 | `#amount > 0`, `#status != null` |
+
+**示例：**
+
+```java
+// 使用参数名
+@Idempotent(key = "'order:' + #orderId")
+
+// 使用参数索引
+@DistributedLock(key = "'lock:' + #p0")
+
+// 使用参数属性
+@Idempotent(key = "'user:' + #request.userId + ':' + #request.action")
+
+// 条件表达式
+@DistributedLock(key = "'task:' + #taskId", condition = "#priority > 5")
+```
+
+---
+
+### 注解 vs 编程式 API
+
+| 场景 | 推荐方式 | 说明 |
+|------|----------|------|
+| 简单的幂等/锁需求 | `@Idempotent` / `@DistributedLock` | 声明式，代码简洁 |
+| 复杂的锁逻辑 | `DistributedFacade` | 完全控制锁流程 |
+| 需要锁等待后的重试逻辑 | `DistributedFacade` | 自定义重试策略 |
+| 动态Key生成 | `DistributedFacade` | 运行时构建Key |
+| 锁嵌套场景 | `DistributedFacade` | 避免死锁 |
+
+> **最佳实践**：Service 层的标准操作使用注解，复杂业务逻辑使用 `DistributedFacade`。
+
+---
+
+### 组合使用示例
+
+```java
+@ApplicationScoped
+public class PaymentService {
+
+    /**
+     * 支付提交：同时使用幂等和分布式锁
+     * - 幂等：防止重复支付
+     * - 锁：保护账户余额并发扣减
+     */
+    @Idempotent(key = "'payment:' + #orderId", ttl = "PT1H")
+    @DistributedLock(key = "'account:' + #accountId", waitTime = "PT5S")
+    public PaymentResult submitPayment(Long orderId, Long accountId, BigDecimal amount) {
+        // 1. 检查订单状态
+        Order order = orderService.findById(orderId);
+        if (order.isPaid()) {
+            throw new BusinessException("订单已支付");
+        }
+        
+        // 2. 扣减账户余额
+        accountService.deduct(accountId, amount);
+        
+        // 3. 更新订单状态
+        orderService.markAsPaid(orderId);
+        
+        return PaymentResult.success();
+    }
+}
+```
+
+---
 
