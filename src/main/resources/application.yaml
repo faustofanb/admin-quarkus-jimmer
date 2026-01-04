@@ -73,15 +73,11 @@ quarkus:
     devservices:
         enabled: false
 
-    # Pulsar Dev Services - Disabled (pluggable)
-    pulsar:
-        devservices:
-            enabled: false
-
-    # Dev UI
-    dev-ui:
-        enabled: true
-        path: /dev-ui
+    # 注意：pulsar.devservices 需要 quarkus-messaging-pulsar 扩展
+    # 如果需要 Pulsar 支持，请添加依赖后取消注释
+    # pulsar:
+    #     devservices:
+    #         enabled: false
 
     # Swagger UI
     swagger-ui:
@@ -171,7 +167,7 @@ app:
             type: REDIS # LOCAL / REDIS / AUTO
             wait-time: PT10S # 获取锁最大等待时间
             lease-time: PT30S # 锁租约时间（自动过期）
-            retry-interval: PT50MS # 重试间隔
+            retry-interval: PT0.05S # 重试间隔
         id-generator:
             type: SNOWFLAKE # 雪花算法
             datacenter-id: 1 # 数据中心 ID（0~31）
@@ -186,7 +182,7 @@ app:
     # ============ Messaging Configuration ============
     messaging:
         enabled: true # 总开关
-        default-channel: LOCAL # 默认使用本地 CDI 事件
+        channel: LOCAL # 默认使用本地 CDI 事件
         delivery-mode: FIRE_AND_FORGET # 投递模式
 
         # 本地通道配置（CDI 事件）
@@ -198,15 +194,15 @@ app:
         # Pulsar 通道配置（已关闭）
         pulsar:
             enabled: false # Pulsar 已关闭
-            service-url: pulsar://localhost:6650
-            tenant: public
-            namespace: default
-            subscription-prefix: admin-
-            send-timeout: 10s
-            batching-enabled: true
-            batch-max-bytes: 131072
-            batch-max-messages: 1000
-            batch-max-delay: 10ms
+        #            service-url: pulsar://localhost:6650
+        #            tenant: public
+        #            namespace: default
+        #            subscription-prefix: admin-
+        #            send-timeout: 10s
+        #            batching-enabled: true
+        #            batch-max-bytes: 131072
+        #            batch-max-messages: 1000
+        #            batch-max-delay: 10ms
 
         # Stream 通道配置（Mutiny 响应式流）
         stream:

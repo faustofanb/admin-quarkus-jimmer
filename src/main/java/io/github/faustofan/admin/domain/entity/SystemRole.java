@@ -76,13 +76,10 @@ public interface SystemRole extends TenantEntity {
     List<SystemMenu> roleMenus();
 
     /**
-     * 关联的用户-角色中间表
+     * 关联的用户-角色中间表（镜像关联）
+     * <p>
+     * 注意：这是 SystemUser.userRoles() 的镜像，主控方在 SystemUser 端
      */
-    @ManyToMany
-    @JoinTable(
-            name = "system_user_role",
-            joinColumnName = "role_id",
-            inverseJoinColumnName = "user_id"
-    )
+    @ManyToMany(mappedBy = "userRoles")
     List<SystemUser> roleUsers();
 }

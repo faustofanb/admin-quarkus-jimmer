@@ -46,7 +46,7 @@ public class MessagingFacade {
         this.localEventBus = localEventBus;
         this.pulsarEventBus = pulsarEventBus;
         this.streamEventBus = streamEventBus;
-        LOG.info("MessagingFacade initialized – default channel: " + config.defaultChannel());
+        LOG.info("MessagingFacade initialized – default channel: " + config.channel());
     }
 
     /**
@@ -84,7 +84,7 @@ public class MessagingFacade {
      * 获取默认的 EventBus（由配置 {@code admin.messaging.default-channel} 决定）。
      */
     public EventBus getDefaultEventBus() {
-        return getEventBus(config.defaultChannel());
+        return getEventBus(config.channel());
     }
 
     // ---------------------------------------------------------------------

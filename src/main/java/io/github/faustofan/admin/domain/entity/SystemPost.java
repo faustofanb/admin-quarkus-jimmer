@@ -46,14 +46,11 @@ public interface SystemPost extends TenantEntity {
     String remark();
 
     /**
-     * 关联的用户-岗位中间表
+     * 关联的用户-岗位中间表（镜像关联）
+     * <p>
+     * 注意：这是 SystemUser.userPosts() 的镜像，主控方在 SystemUser 端
      */
-    @ManyToMany
-    @JoinTable(
-            name = "system_user_post",
-            joinColumnName = "post_id",
-            inverseJoinColumnName = "user_id"
-    )
+    @ManyToMany(mappedBy = "userPosts")
     List<SystemUser> postUsers();
 
 }

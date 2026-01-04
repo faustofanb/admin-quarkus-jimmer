@@ -142,7 +142,7 @@ public class EventListenerRegistry {
             // 确定使用哪个通道（取第一个监听器的配置或默认）
             ChannelType channelType = listeners.get(0).channel;
             if (channelType == ChannelType.AUTO) {
-                channelType = config.defaultChannel();
+                channelType = config.channel();
             }
 
             try {

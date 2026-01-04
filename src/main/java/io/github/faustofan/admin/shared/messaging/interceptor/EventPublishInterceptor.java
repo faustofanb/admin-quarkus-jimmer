@@ -91,7 +91,7 @@ public class EventPublishInterceptor {
             // 获取通道
             ChannelType channelType = annotation.channel();
             if (channelType == ChannelType.AUTO) {
-                channelType = config.defaultChannel();
+                channelType = config.channel();
             }
 
             EventBus eventBus = messagingFacade.getEventBus(channelType);

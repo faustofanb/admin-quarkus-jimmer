@@ -2,7 +2,6 @@ package io.github.faustofan.admin.shared.messaging.config;
 
 import io.github.faustofan.admin.shared.messaging.constants.ChannelType;
 import io.github.faustofan.admin.shared.messaging.constants.DeliveryMode;
-import io.github.faustofan.admin.shared.messaging.constants.MessagingConstants;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
@@ -26,16 +25,16 @@ public interface MessagingConfig {
     /**
      * 默认消息通道类型
      */
-    @WithName("default-channel")
+    @WithName("channel")
     @WithDefault("local")
-    ChannelType defaultChannel();
+    ChannelType channel();
 
     /**
      * 默认投递模式
      */
-    @WithName("default-delivery-mode")
+    @WithName("delivery-mode")
     @WithDefault("at_least_once")
-    DeliveryMode defaultDeliveryMode();
+    DeliveryMode deliveryMode();
 
     /**
      * 本地事件配置
