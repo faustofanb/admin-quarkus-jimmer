@@ -12,7 +12,7 @@ import java.util.Optional;
  * <p>
  * 使用 Quarkus ConfigMapping 定义可观测性相关配置
  */
-@ConfigMapping(prefix = "admin.observable")
+@ConfigMapping(prefix = "app.observable")
 public interface ObservableConfig {
 
     /**

@@ -36,7 +36,7 @@
 将以下块粘贴到 `src/main/resources/application.yaml` **`admin.observable`** 前缀下（已在项目中实现）。
 
 ```yaml
-admin:
+app:
   observable:
     # ---------- 开关 ----------
     enabled: true                     # 总开关，关闭后所有可观测功能失效

@@ -493,3 +493,233 @@ public class OrderEventHandler {
 
 ---
 
+## 实体生命周期事件发布（Jimmer 触发器）
+
+本项目集成了 **Jimmer Transaction Trigger**，所有继承自 `AuditEntity` 的实体在执行 INSERT/UPDATE/DELETE 操作时，会自动发布相应的领域事件到消息总线。
+
+### 工作原理
+
+```
+┌─────────────────┐      ┌───────────────────────┐      ┌─────────────────┐
+│  Service 层     │      │  Jimmer SqlClient     │      │  Database       │
+│  save/update/   │─────>│  Transaction Trigger  │─────>│  INSERT/UPDATE  │
+│  delete         │      │  EntityEvent 触发     │      │  DELETE         │
+└─────────────────┘      └───────────────────────┘      └─────────────────┘
+                                   │
+                                   ▼
+                         ┌───────────────────────┐
+                         │  AuditEntityEvent     │
+                         │  Listener             │
+                         │  转换为 EntityChange  │
+                         │  Event                │
+                         └───────────────────────┘
+                                   │
+                                   ▼
+                         ┌───────────────────────┐
+                         │  EntityEventPublisher │
+                         │  发布 DomainEvent     │
+                         │  到 MessagingFacade   │
+                         └───────────────────────┘
+                                   │
+                                   ▼
+                         ┌───────────────────────┐
+                         │  @EventListener       │
+                         │  监听并处理事件       │
+                         └───────────────────────┘
+```
+
+### 配置启用
+
+确保在 `application.yaml` 中启用了 Jimmer 触发器：
+
+```yaml
+quarkus:
+  jimmer:
+    active: true
+    # 启用事务触发器，用于实体生命周期事件发布
+    trigger-type: TRANSACTION_ONLY
+```
+
+> **触发器类型说明**：
+> - `TRANSACTION_ONLY`：在事务内同步触发，事件会在 SQL 执行后立即发布
+> - `BINLOG_ONLY`：基于数据库 BinLog 触发，需要额外配置
+> - `BOTH`：同时支持两种模式
+
+### Topic 命名规则
+
+实体事件的 Topic 格式为：`admin.domain.{entitySimpleName.toLowerCase()}`
+
+| 实体类 | Topic |
+|--------|-------|
+| `SystemUser` | `admin.domain.systemuser` |
+| `SystemRole` | `admin.domain.systemrole` |
+| `SystemMenu` | `admin.domain.systemmenu` |
+| `SystemDept` | `admin.domain.systemdept` |
+| `SystemPost` | `admin.domain.systempost` |
+| `SystemTenant` | `admin.domain.systemtenant` |
+
+可以使用 `MessagingConstants.EntityTopic` 中预定义的常量：
+
+```java
+import io.github.faustofan.admin.shared.messaging.constants.MessagingConstants;
+
+// 使用常量而非硬编码字符串
+String topic = MessagingConstants.EntityTopic.SYSTEM_USER;  // admin.domain.systemuser
+
+// 动态生成 Topic
+String dynamicTopic = MessagingConstants.EntityTopic.forEntity(SystemRole.class);  // admin.domain.systemrole
+```
+
+### 监听实体事件
+
+#### 监听特定实体的特定操作
+
+```java
+import io.github.faustofan.admin.shared.messaging.annotation.EventListener;
+import io.github.faustofan.admin.shared.messaging.constants.EventType;
+import io.github.faustofan.admin.shared.messaging.constants.MessagingConstants;
+import io.github.faustofan.admin.shared.messaging.core.DomainEvent;
+import io.github.faustofan.admin.shared.persistence.event.EntityChangeEvent;
+
+@ApplicationScoped
+public class UserEventHandler {
+
+    /**
+     * 监听用户创建事件
+     */
+    @EventListener(
+        topic = MessagingConstants.EntityTopic.SYSTEM_USER,
+        eventType = EventType.CREATED,
+        description = "用户创建事件处理"
+    )
+    public void onUserCreated(DomainEvent<EntityChangeEvent<?>> event) {
+        EntityChangeEvent<?> changeEvent = event.getPayload();
+        
+        // 获取实体 ID
+        Object userId = changeEvent.getEntityId();
+        
+        // 获取新创建的实体
+        Object newUser = changeEvent.getNewEntity();
+        
+        LOG.infov("User created: id={0}", userId);
+        
+        // 业务逻辑：发送欢迎邮件、初始化用户配置等
+    }
+
+    /**
+     * 监听用户更新事件
+     */
+    @EventListener(
+        topic = MessagingConstants.EntityTopic.SYSTEM_USER,
+        eventType = EventType.UPDATED
+    )
+    public void onUserUpdated(DomainEvent<EntityChangeEvent<?>> event) {
+        EntityChangeEvent<?> changeEvent = event.getPayload();
+        
+        // 获取变更前后的实体
+        Object oldUser = changeEvent.getOldEntity();
+        Object newUser = changeEvent.getNewEntity();
+        
+        // 业务逻辑：同步到其他系统、更新缓存等
+    }
+
+    /**
+     * 监听用户删除事件
+     */
+    @EventListener(
+        topic = MessagingConstants.EntityTopic.SYSTEM_USER,
+        eventType = EventType.DELETED
+    )
+    public void onUserDeleted(DomainEvent<EntityChangeEvent<?>> event) {
+        EntityChangeEvent<?> changeEvent = event.getPayload();
+        
+        // 获取被删除的实体
+        Object deletedUser = changeEvent.getOldEntity();
+        
+        // 业务逻辑：清理关联数据、发送通知等
+    }
+}
+```
+
+#### 监听所有变更事件
+
+```java
+/**
+ * 监听角色的所有变更（创建、更新、删除）
+ */
+@EventListener(
+    topic = MessagingConstants.EntityTopic.SYSTEM_ROLE,
+    description = "角色变更事件处理"
+)
+public void onRoleChanged(DomainEvent<EntityChangeEvent<?>> event) {
+    EntityChangeEvent<?> changeEvent = event.getPayload();
+    
+    switch (changeEvent.getEventType()) {
+        case INSERTED -> handleRoleCreated(changeEvent);
+        case UPDATED -> handleRoleUpdated(changeEvent);
+        case DELETED -> handleRoleDeleted(changeEvent);
+    }
+    
+    // 刷新权限缓存
+    permissionCacheService.refresh();
+}
+```
+
+### EntityChangeEvent 结构
+
+```java
+public class EntityChangeEvent<E> {
+    
+    private String eventId;           // 事件唯一标识
+    private Instant occurredAt;       // 事件发生时间
+    private EntityEventType eventType; // INSERTED / UPDATED / DELETED
+    private String entityType;        // 实体类全限定名
+    private Class<E> entityClass;     // 实体类
+    private Object entityId;          // 实体 ID
+    private E oldEntity;              // 变更前实体（INSERT 时为 null）
+    private E newEntity;              // 变更后实体（DELETE 时为 null）
+    private String source;            // 事件来源
+    private Map<String, String> metadata;  // 扩展元数据
+    
+    // 便捷方法
+    public boolean isInsert();        // 是否为插入事件
+    public boolean isUpdate();        // 是否为更新事件
+    public boolean isDelete();        // 是否为删除事件
+    public E getEntity();             // 获取有效实体（新实体或旧实体）
+}
+```
+
+### 典型使用场景
+
+| 场景 | 事件类型 | 处理逻辑示例 |
+|------|----------|--------------|
+| 用户创建后发送欢迎邮件 | `CREATED` | 发送邮件、创建默认配置 |
+| 用户信息变更同步到其他系统 | `UPDATED` | 调用外部 API、更新缓存 |
+| 用户删除时清理关联数据 | `DELETED` | 删除日志、清理权限 |
+| 角色权限变更刷新缓存 | `CREATED/UPDATED/DELETED` | 刷新权限缓存 |
+| 菜单变更通知前端刷新 | `CREATED/UPDATED/DELETED` | WebSocket 推送 |
+| 数据审计日志记录 | 所有 | 记录变更历史 |
+
+### 注意事项
+
+1. **只处理 AuditEntity 子类**：只有继承自 `AuditEntity` 的实体才会触发事件发布。
+2. **事务内触发**：事件在事务内发布，如果事务回滚，事件监听器可能已经执行。对于关键操作，建议使用异步处理或在事务提交后确认。
+3. **避免循环依赖**：事件监听器中如果再次修改同一个实体，可能导致无限循环。
+4. **性能考虑**：同步事件处理会影响主业务性能，建议使用 `async = true` 进行异步处理。
+5. **异常处理**：事件发布失败不会影响主业务流程，错误会被记录但不会抛出。
+
+---
+
+## 相关代码位置
+
+| 组件 | 路径 |
+|------|------|
+| 实体事件类型 | `io.github.faustofan.admin.shared.persistence.event.EntityEventType` |
+| 实体变更事件 | `io.github.faustofan.admin.shared.persistence.event.EntityChangeEvent` |
+| 事件发布器 | `io.github.faustofan.admin.shared.persistence.event.EntityEventPublisher` |
+| Jimmer 触发器配置 | `io.github.faustofan.admin.shared.persistence.trigger.JimmerTriggerConfiguration` |
+| 审计实体监听器 | `io.github.faustofan.admin.shared.persistence.trigger.AuditEntityEventListener` |
+| 示例监听器 | `io.github.faustofan.admin.shared.persistence.event.EntityChangeEventListener` |
+| Topic 常量 | `io.github.faustofan.admin.shared.messaging.constants.MessagingConstants.EntityTopic` |
+
+---

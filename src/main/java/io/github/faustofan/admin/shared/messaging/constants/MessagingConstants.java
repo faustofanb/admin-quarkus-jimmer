@@ -197,6 +197,71 @@ public final class MessagingConstants {
         public static final String ACCESS_LOG = TopicPrefix.AUDIT + "access";
     }
 
+    /**
+     * 实体变更事件 Topic
+     * <p>
+     * 由 Jimmer 触发器自动发布的实体生命周期事件
+     * Topic 格式: admin.domain.{entitySimpleName.toLowerCase()}
+     */
+    public static final class EntityTopic {
+        private EntityTopic() {}
+
+        /**
+         * 用户实体变更事件
+         */
+        public static final String SYSTEM_USER = TopicPrefix.DOMAIN + "systemuser";
+
+        /**
+         * 角色实体变更事件
+         */
+        public static final String SYSTEM_ROLE = TopicPrefix.DOMAIN + "systemrole";
+
+        /**
+         * 菜单实体变更事件
+         */
+        public static final String SYSTEM_MENU = TopicPrefix.DOMAIN + "systemmenu";
+
+        /**
+         * 部门实体变更事件
+         */
+        public static final String SYSTEM_DEPT = TopicPrefix.DOMAIN + "systemdept";
+
+        /**
+         * 岗位实体变更事件
+         */
+        public static final String SYSTEM_POST = TopicPrefix.DOMAIN + "systempost";
+
+        /**
+         * 租户实体变更事件
+         */
+        public static final String SYSTEM_TENANT = TopicPrefix.DOMAIN + "systemtenant";
+
+        /**
+         * 租户套餐实体变更事件
+         */
+        public static final String SYSTEM_TENANT_PACKAGE = TopicPrefix.DOMAIN + "systemtenantpackage";
+
+        /**
+         * 字典类型实体变更事件
+         */
+        public static final String SYSTEM_DICT_TYPE = TopicPrefix.DOMAIN + "systemdicttype";
+
+        /**
+         * 字典数据实体变更事件
+         */
+        public static final String SYSTEM_DICT_DATA = TopicPrefix.DOMAIN + "systemdictdata";
+
+        /**
+         * 根据实体类名生成 Topic
+         *
+         * @param entityClass 实体类
+         * @return Topic 名称
+         */
+        public static String forEntity(Class<?> entityClass) {
+            return TopicPrefix.DOMAIN + entityClass.getSimpleName().toLowerCase();
+        }
+    }
+
     // ===========================
     // 消费者组名称
     // ===========================
