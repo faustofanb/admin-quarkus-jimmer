@@ -1,0 +1,55 @@
+{
+  "name": "Admin System Dev Container",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/admin",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-boot-dev-pack",
+        "redhat.vscode-yaml",
+        "codezombiech.gitignore",
+        "cweijan.vscode-office",
+        "donjayamanne.githistory",
+        "dotjoshjohnson.xml",
+        "mhutchie.git-graph",
+        "oderwat.indent-rainbow",
+        "vscjava.vscode-spring-boot-dashboard",
+        "vscjava.vscode-spring-initializr",
+        "ms-ceintl.vscode-language-pack-zh-hans",
+        "github.copilot",
+        "github.copilot-chat",
+        "ms-azuretools.vscode-containers",
+        "enaium.jimmer-dto-lsp-vscode",
+        "dbcode.dbcode"
+      ],
+      "settings": {
+        "java.configuration.updateBuildConfiguration": "automatic",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "forwardPorts": [
+    8080,
+    5173,
+    5432,
+    6379,
+    9876,
+    10911,
+    10909,
+    7700,
+    9000,
+    9001,
+    3000,
+    3100,
+    9090
+  ],
+  "postStartCommand": "sudo chmod 666 /var/run/docker.sock",
+  "remoteUser": "vscode"
+}
