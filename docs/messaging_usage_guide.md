@@ -242,4 +242,254 @@ pulsarBus.publish(event); // 直接使用 Pulsar
 - **Mutiny 文档**：https://smallrye.io/smallrye-mutiny/
 - **Apache Pulsar 官方文档**：https://pulsar.apache.org/docs/
 
+---
+
+## 声明式注解
+
+为了简化业务开发，我们提供了一套声明式注解，无需手动调用 `MessagingFacade`，只需在方法上添加注解即可自动完成事件发布和订阅。
+
+### 注解概览
+
+| 注解 | 说明 | 适用场景 |
+|------|------|----------|
+| `@EventListener` | 事件监听，自动订阅并处理事件 | 事件消费端 |
+| `@EventPublish` | 事件发布，方法执行后自动发布事件 | 事件生产端 |
+
+---
+
+### @EventListener 事件监听注解
+
+```java
+import io.github.faustofan.admin.shared.messaging.annotation.EventListener;
+import io.github.faustofan.admin.shared.messaging.constants.EventType;
+import io.github.faustofan.admin.shared.messaging.constants.ChannelType;
+import io.github.faustofan.admin.shared.messaging.constants.MessagingConstants;
+import io.github.faustofan.admin.shared.messaging.core.DomainEvent;
+
+@ApplicationScoped
+public class UserEventHandler {
+
+    // 监听用户创建事件
+    @EventListener(
+        topic = MessagingConstants.SystemTopic.USER_EVENTS,
+        eventType = EventType.CREATED
+    )
+    public void onUserCreated(DomainEvent<UserDto> event) {
+        log.info("User created: " + event.getPayload().getUsername());
+        // 发送欢迎邮件、初始化用户数据等
+    }
+
+    // 监听所有用户事件
+    @EventListener(topic = "admin.system.user")
+    public void onUserEvent(DomainEvent<UserDto> event) {
+        log.info("User event: " + event.getEventType());
+    }
+
+    // 指定使用 Pulsar 通道
+    @EventListener(
+        topic = "admin.integration.order",
+        channel = ChannelType.PULSAR,
+        consumerGroup = "order-handler-group"
+    )
+    public void onOrderEvent(IntegrationEvent<OrderDto> event) {
+        orderService.syncOrder(event.getPayload());
+    }
+
+    // 异步处理 + 失败重试
+    @EventListener(
+        topic = MessagingConstants.BusinessTopic.PAYMENT_EVENTS,
+        eventType = EventType.CREATED,
+        async = true,
+        retryCount = 3,
+        retryInterval = "PT5S"
+    )
+    public void onPaymentCreated(DomainEvent<PaymentDto> event) {
+        notificationService.sendPaymentNotification(event.getPayload());
+    }
+
+    // 优先级控制
+    @EventListener(
+        topic = "admin.system.config",
+        eventType = EventType.CONFIG_CHANGED,
+        priority = 10,  // 数值越小优先级越高
+        description = "配置变更处理器"
+    )
+    public void onConfigChanged(DomainEvent<ConfigDto> event) {
+        cacheManager.refresh();
+    }
+}
+```
+
+**注解属性说明：**
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `topic` | String | **必填** | 订阅的 Topic |
+| `eventType` | EventType[] | 全部 | 事件类型过滤 |
+| `channel` | ChannelType | AUTO | 消息通道类型 |
+| `consumerGroup` | String | "" | 消费者组名称 |
+| `async` | boolean | false | 是否异步处理 |
+| `retryCount` | int | 0 | 失败重试次数 |
+| `retryInterval` | String | "PT1S" | 重试间隔 |
+| `condition` | String | "" | 处理条件表达式 |
+| `priority` | int | 100 | 优先级（数值越小越高） |
+| `description` | String | "" | 描述信息 |
+
+---
+
+### @EventPublish 事件发布注解
+
+```java
+import io.github.faustofan.admin.shared.messaging.annotation.EventPublish;
+import io.github.faustofan.admin.shared.messaging.constants.DeliveryMode;
+
+@ApplicationScoped
+public class UserService {
+
+    // 方法执行后自动发布事件（返回值作为 payload）
+    @EventPublish(
+        topic = "admin.system.user",
+        eventType = "created"
+    )
+    public User createUser(UserRequest request) {
+        return userRepository.save(convertToUser(request));
+    }
+
+    // 使用 SpEL 表达式指定 payload
+    @EventPublish(
+        topic = "admin.system.user",
+        eventType = "updated",
+        payload = "#result"
+    )
+    public User updateUser(Long userId, UserRequest request) {
+        return userRepository.update(userId, request);
+    }
+
+    // 条件发布
+    @EventPublish(
+        topic = "admin.system.user",
+        eventType = "deleted",
+        condition = "#result == true"
+    )
+    public boolean deleteUser(Long userId) {
+        return userRepository.deleteById(userId);
+    }
+
+    // 异步发布
+    @EventPublish(
+        topic = "admin.business.order",
+        eventType = "created",
+        async = true,
+        deliveryMode = DeliveryMode.AT_LEAST_ONCE
+    )
+    public Order createOrder(OrderRequest request) {
+        return orderRepository.save(request);
+    }
+
+    // 自定义事件来源
+    @EventPublish(
+        topic = "admin.audit.operation",
+        eventType = "logged",
+        source = "AuditService",
+        throwOnFailure = false  // 发布失败不影响业务
+    )
+    public void logOperation(OperationLog log) {
+        // 业务逻辑
+    }
+}
+```
+
+**注解属性说明：**
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `topic` | String | **必填** | 发布的 Topic |
+| `eventType` | String | "custom" | 事件类型 |
+| `channel` | ChannelType | AUTO | 消息通道类型 |
+| `deliveryMode` | DeliveryMode | FIRE_AND_FORGET | 投递模式 |
+| `payload` | String | 返回值 | Payload 表达式 |
+| `source` | String | 类名.方法名 | 事件来源 |
+| `async` | boolean | false | 是否异步发布 |
+| `condition` | String | "" | 发布条件表达式 |
+| `beforeInvocation` | boolean | false | 是否在方法前发布 |
+| `throwOnFailure` | boolean | false | 发布失败是否抛异常 |
+
+---
+
+### 注解 vs 编程式 API
+
+| 场景 | 推荐方式 | 说明 |
+|------|----------|------|
+| 简单的事件监听 | `@EventListener` | 声明式，代码简洁 |
+| 方法执行后发布事件 | `@EventPublish` | 与业务逻辑解耦 |
+| 复杂的事件流处理 | `MessagingFacade.subscribe()` | 使用 Mutiny Multi |
+| 需要控制投递确认 | `MessagingFacade` | 完全控制发布流程 |
+| 批量事件处理 | `StreamEventBus.subscribeBatch()` | 高级流处理 |
+
+> **最佳实践**：事件消费使用 `@EventListener`，简单发布使用 `@EventPublish`，复杂场景使用 `MessagingFacade`。
+
+---
+
+### 组合使用示例
+
+```java
+@ApplicationScoped
+public class OrderService {
+
+    /**
+     * 订单创建：创建订单后发布事件，触发下游处理
+     */
+    @EventPublish(
+        topic = "admin.business.order",
+        eventType = "created"
+    )
+    public Order createOrder(OrderRequest request) {
+        Order order = orderRepository.save(convertToOrder(request));
+        return order;
+    }
+}
+
+@ApplicationScoped
+public class OrderEventHandler {
+
+    /**
+     * 监听订单创建事件：发送通知
+     */
+    @EventListener(
+        topic = "admin.business.order",
+        eventType = EventType.CREATED,
+        priority = 10
+    )
+    public void onOrderCreatedForNotification(DomainEvent<Order> event) {
+        notificationService.sendOrderConfirmation(event.getPayload());
+    }
+
+    /**
+     * 监听订单创建事件：更新库存
+     */
+    @EventListener(
+        topic = "admin.business.order",
+        eventType = EventType.CREATED,
+        priority = 20
+    )
+    public void onOrderCreatedForInventory(DomainEvent<Order> event) {
+        inventoryService.reserveStock(event.getPayload());
+    }
+
+    /**
+     * 监听订单创建事件：记录审计日志
+     */
+    @EventListener(
+        topic = "admin.business.order",
+        eventType = EventType.CREATED,
+        async = true,  // 异步执行不阻塞主流程
+        priority = 100
+    )
+    public void onOrderCreatedForAudit(DomainEvent<Order> event) {
+        auditService.logOrderCreation(event.getPayload());
+    }
+}
+```
+
+---
 
