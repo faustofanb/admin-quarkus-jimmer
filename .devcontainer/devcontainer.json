@@ -2,7 +2,7 @@
     "name": "Admin System Dev Container",
     "dockerComposeFile": "docker-compose.yml",
     "service": "devcontainer",
-    "workspaceFolder": "/workspaces/admin",
+    "workspaceFolder": "/workspaces",
     "features": {
         "ghcr.io/devcontainers/features/node:1": {
             "version": "20"
