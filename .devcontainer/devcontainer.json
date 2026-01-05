@@ -11,6 +11,20 @@
             "version": "latest",
             "helm": "latest",
             "minikube": "none"
+        },
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "version": "latest",
+            "enableNonRootDocker": "true",
+            "moby": "true",
+            "dockerDashComposeVersion": "v2"
+        },
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": "true",
+            "upgradePackages": "false",
+            "uid": "1000",
+            "gid": "1000",
+            "installOhMyZsh": "true",
+            "nonFreePackages": "true"
         }
     },
     "customizations": {
@@ -61,6 +75,6 @@
         30081,
         30082
     ],
-    "postStartCommand": "sudo chmod 666 /var/run/docker.sock && chmod +x .devcontainer/scripts/*.sh",
+    "postStartCommand": "chmod +x .devcontainer/scripts/*.sh",
     "remoteUser": "vscode"
 }

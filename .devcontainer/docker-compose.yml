@@ -2,13 +2,13 @@ version: '3.8'
 services:
   # ==================== DevContainer App ====================
   devcontainer:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ../..:/workspaces/admin-quarkus-jimmer:cached
+      - ..:/workspaces/admin-quarkus-jimmer:cached
       - /var/run/docker.sock:/var/run/docker.sock
-      - k3s-kubeconfig:/root/.kube  # 共享 kubeconfig
+      - k3s-kubeconfig:/root/.kube # 共享 kubeconfig
     command: sleep infinity
     environment:
       - KUBECONFIG=/root/.kube/config
@@ -21,7 +21,7 @@ services:
     image: rancher/k3s:v1.29.0-k3s1
     command:
       - server
-      - --disable=traefik  # 禁用默认 traefik，使用 Rancher 的
+      - --disable=traefik # 禁用默认 traefik，使用 Rancher 的
       - --tls-san=k3s
       - --tls-san=localhost
       - --tls-san=127.0.0.1
@@ -36,16 +36,16 @@ services:
       - k3s-kubeconfig:/output
       - ./k3s/registries.yaml:/etc/rancher/k3s/registries.yaml:ro
     ports:
-      - "6443:6443"   # Kubernetes API
-      - "80:80"       # Ingress HTTP
-      - "443:443"     # Ingress HTTPS
+      - "6443:6443" # Kubernetes API
+      - "80:80" # Ingress HTTP
+      - "443:443" # Ingress HTTPS
       - "30080:30080" # NodePort for admin-app
       - "30081:30081" # NodePort reserved
       - "30082:30082" # NodePort reserved
     networks:
       - admin-network
     healthcheck:
-      test: ["CMD", "kubectl", "get", "nodes"]
+      test: [ "CMD", "kubectl", "get", "nodes" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -58,27 +58,27 @@ services:
     image: rancher/rancher:v2.8-head
     privileged: true
     environment:
-      - CATTLE_BOOTSTRAP_PASSWORD=admin  # 初始密码，首次登录时会提示修改
+      - CATTLE_BOOTSTRAP_PASSWORD=admin # 初始密码，首次登录时会提示修改
       - AUDIT_LEVEL=1
     volumes:
       - rancher-data:/var/lib/rancher
     ports:
-      - "8443:443"    # Rancher UI (HTTPS)
-      - "8080:80"     # Rancher UI (HTTP redirect) - 注意与 Quarkus dev 冲突
+      - "8443:443" # Rancher UI (HTTPS)
+      - "8080:80" # Rancher UI (HTTP redirect) - 注意与 Quarkus dev 冲突
     networks:
       - admin-network
     depends_on:
       k3s:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsk", "https://localhost/ping"]
+      test: [ "CMD", "curl", "-fsk", "https://localhost/ping" ]
       interval: 15s
       timeout: 10s
       retries: 20
-      start_period: 120s  # Rancher 启动较慢
+      start_period: 120s # Rancher 启动较慢
     restart: unless-stopped
     profiles:
-      - rancher  # 使用 profile 控制，默认不启动
+      - rancher # 使用 profile 控制，默认不启动
 
   # ==================== 开发数据库 (Docker Compose 模式) ====================
   # 注意：K8s 部署时使用 k8s/base/postgresql.yaml
@@ -96,7 +96,7 @@ services:
     networks:
       - admin-network
     profiles:
-      - dev  # 仅开发模式使用，K8s 部署时不需要
+      - dev # 仅开发模式使用，K8s 部署时不需要
 
   # ==================== 开发 Redis (Docker Compose 模式) ====================
   # 注意：K8s 部署时使用 k8s/base/redis.yaml
@@ -110,7 +110,7 @@ services:
     networks:
       - admin-network
     profiles:
-      - dev  # 仅开发模式使用，K8s 部署时不需要
+      - dev # 仅开发模式使用，K8s 部署时不需要
 
   # ==================== Quarkus Application (Docker 模式) ====================
   quarkus-app:
@@ -137,13 +137,13 @@ services:
     networks:
       - admin-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health/ready"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/q/health/ready" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     profiles:
-      - deploy  # 使用 profile 控制，默认不启动
+      - deploy # 使用 profile 控制，默认不启动
 
   # ==================== Quarkus Dev Mode ====================
   quarkus-dev:
@@ -161,7 +161,7 @@ services:
       QUARKUS_DATASOURCE_PASSWORD: password
       QUARKUS_REDIS_HOSTS: redis://redis:6379
       MAVEN_OPTS: "-Xmx1g"
-    command: ["./mvnw", "quarkus:dev", "-Dquarkus.http.host=0.0.0.0", "-Ddebug=5005"]
+    command: [ "./mvnw", "quarkus:dev", "-Dquarkus.http.host=0.0.0.0", "-Ddebug=5005" ]
     depends_on:
       - postgresql
       - redis
@@ -213,8 +213,8 @@ volumes:
   postgres-data:
   redis-data:
   maven-repo:
-  k3s-server:         # K3s 数据
-  k3s-kubeconfig:     # K3s kubeconfig 共享
-  rancher-data:       # Rancher 数据
+  k3s-server: # K3s 数据
+  k3s-kubeconfig: # K3s kubeconfig 共享
+  rancher-data: # Rancher 数据
   grafana-data:
   prometheus-data:
