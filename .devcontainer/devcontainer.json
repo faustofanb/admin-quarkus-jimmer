@@ -2,7 +2,7 @@
     "name": "Admin System Dev Container",
     "dockerComposeFile": "docker-compose.yml",
     "service": "devcontainer",
-    "workspaceFolder": "/workspaces",
+    "workspaceFolder": "/workspaces/admin-quarkus-jimmer",
     "features": {
         "ghcr.io/devcontainers/features/node:1": {
             "version": "20"

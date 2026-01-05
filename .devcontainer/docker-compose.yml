@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ../..:/workspaces:cached
+      - ../..:/workspaces/admin-quarkus-jimmer:cached
       - /var/run/docker.sock:/var/run/docker.sock
       - k3s-kubeconfig:/root/.kube  # 共享 kubeconfig
     command: sleep infinity
