@@ -1,0 +1,31 @@
+# K3s Server Configuration
+# 单节点开发环境配置
+
+# 禁用 Traefik (可选，如果需要自定义 Ingress)
+# disable:
+#   - traefik
+
+# 写入 kubeconfig 到指定位置便于共享
+write-kubeconfig-mode: "0644"
+
+# TLS SAN 配置，允许从主机访问
+tls-san:
+  - "localhost"
+  - "127.0.0.1"
+  - "k3s"
+  - "host.docker.internal"
+
+# 禁用云控制器 (容器内运行)
+disable-cloud-controller: true
+
+# 嵌入式 etcd (单节点使用 SQLite)
+# cluster-init: true
+
+# Kubelet 参数
+kubelet-arg:
+  - "max-pods=110"
+
+# Kube API Server 参数
+kube-apiserver-arg:
+  - "default-not-ready-toleration-seconds=30"
+  - "default-unreachable-toleration-seconds=30"

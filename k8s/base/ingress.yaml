@@ -1,0 +1,76 @@
+# Ingress Configuration (Traefik - K3s default)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: admin-app-ingress
+  namespace: admin-system
+  labels:
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/name: admin-app
+  annotations:
+    # Traefik 注解
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.tls: "false"
+
+    # 请求限制
+    traefik.ingress.kubernetes.io/rate-limit: "100"
+
+    # 超时配置
+    traefik.ingress.kubernetes.io/request-timeout: "30s"
+
+    # 启用压缩
+    traefik.ingress.kubernetes.io/compress: "true"
+
+    # CORS (如需要)
+    # traefik.ingress.kubernetes.io/cors-allow-origin: "*"
+spec:
+  ingressClassName: traefik
+  rules:
+    # 本地开发域名
+    - host: admin.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-app
+                port:
+                  number: 8080
+
+    # 无域名直接访问 (fallback)
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-app
+                port:
+                  number: 8080
+# ---
+# # 如需 HTTPS，配置 TLS
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: admin-app-ingress-tls
+#   namespace: admin-system
+#   annotations:
+#     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+# spec:
+#   ingressClassName: traefik
+#   tls:
+#     - hosts:
+#         - admin.example.com
+#       secretName: admin-app-tls
+#   rules:
+#     - host: admin.example.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: admin-app
+#                 port:
+#                   number: 8080

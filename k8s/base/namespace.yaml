@@ -1,0 +1,8 @@
+# Kubernetes Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: admin-system
+  labels:
+    app.kubernetes.io/name: admin-system
+    app.kubernetes.io/description: "Admin Quarkus Application Namespace"

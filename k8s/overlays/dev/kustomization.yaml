@@ -1,0 +1,68 @@
+# Kustomize Dev Overlay
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: admin-system
+
+# 引用基础配置
+resources:
+  - ../../base
+
+# 开发环境标签
+commonLabels:
+  environment: dev
+
+# 镜像覆盖 (使用 latest 或指定 tag)
+images:
+  - name: admin-quarkus
+    newName: ghcr.io/faustofan/admin-quarkus-jimmer
+    newTag: develop
+
+# 配置覆盖
+patches:
+  # 减少副本数
+  - target:
+      kind: Deployment
+      name: admin-app
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # 减少资源限制
+  - target:
+      kind: Deployment
+      name: admin-app
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+
+  # 禁用 HPA (开发环境)
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: admin-app-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+
+# ConfigMap 覆盖
+configMapGenerator:
+  - name: admin-app-config
+    behavior: merge
+    literals:
+      - QUARKUS_PROFILE=dev
+      - QUARKUS_LOG_LEVEL=DEBUG

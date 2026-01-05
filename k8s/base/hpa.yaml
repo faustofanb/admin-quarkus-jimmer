@@ -1,0 +1,76 @@
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: admin-app-hpa
+  namespace: admin-system
+  labels:
+    app.kubernetes.io/component: autoscaling
+    app.kubernetes.io/name: admin-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: admin-app
+
+  # 副本范围
+  minReplicas: 1
+  maxReplicas: 5
+
+  # 扩缩容指标
+  metrics:
+    # CPU 使用率
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # 内存使用率
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+  # 扩缩容行为
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+      selectPolicy: Max
+
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min
+
+---
+# Pod Disruption Budget (可选，用于保证高可用)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: admin-app-pdb
+  namespace: admin-system
+  labels:
+    app.kubernetes.io/component: availability
+    app.kubernetes.io/name: admin-app
+spec:
+  # 至少保持 1 个可用
+  minAvailable: 1
+  # 或者最多允许 1 个不可用
+  # maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: admin-app
