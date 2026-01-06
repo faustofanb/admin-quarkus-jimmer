@@ -84,27 +84,38 @@ EOF
 setup_kubectl() {
     log_info "Setting up kubectl..."
     
-    # 等待 kubeconfig 文件
-    local max_attempts=30
+    # 等待 K3s 通过共享卷生成 kubeconfig
+    local kube_config_src="$HOME/.kube/kubeconfig.yaml"
+    local kube_config_dest="$HOME/.kube/config"
+    local max_attempts=60
     local attempt=0
     
-    while [ ! -f /etc/rancher/k3s/k3s.yaml ] && [ $attempt -lt $max_attempts ]; do
+    log_info "Waiting for kubeconfig at ${kube_config_src}..."
+    
+    while [ ! -f "$kube_config_src" ] && [ $attempt -lt $max_attempts ]; do
         attempt=$((attempt + 1))
+        echo -n "."
         sleep 2
     done
+    echo ""
     
-    if [ -f /etc/rancher/k3s/k3s.yaml ]; then
-        mkdir -p ~/.kube
-        cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-        chmod 600 ~/.kube/config
+    if [ -f "$kube_config_src" ]; then
+        # 复制为标准的 config 文件
+        cp "$kube_config_src" "$kube_config_dest"
+        chmod 600 "$kube_config_dest"
         
-        # 替换 localhost 为 k3s 服务名 (在 DevContainer 中)
-        sed -i 's/127.0.0.1/k3s/g' ~/.kube/config 2>/dev/null || \
-        sed -i '' 's/127.0.0.1/k3s/g' ~/.kube/config 2>/dev/null || true
+        # 替换 localhost 为 k3s 服务名 (在 Docker 网络中)
+        if command -v sed &>/dev/null; then
+            sed -i 's/127.0.0.1/k3s/g' "$kube_config_dest" 2>/dev/null || \
+            sed -i '' 's/127.0.0.1/k3s/g' "$kube_config_dest" 2>/dev/null || true
+            sed -i 's/localhost/k3s/g' "$kube_config_dest" 2>/dev/null || \
+            sed -i '' 's/localhost/k3s/g' "$kube_config_dest" 2>/dev/null || true
+        fi
         
-        log_success "kubectl configured"
+        log_success "kubectl configured at ${kube_config_dest}"
     else
-        log_error "kubeconfig not found"
+        log_error "kubeconfig not found at ${kube_config_src} after waiting."
+        log_info "Make sure K3s is running: docker-compose --profile k8s up -d"
         return 1
     fi
 }
@@ -155,8 +166,8 @@ main() {
     log_info "Starting K3s setup..."
     
     setup_ghcr_auth
-    wait_for_k3s
     setup_kubectl
+    wait_for_k3s
     install_tools
     show_cluster_info
 }
