@@ -84,38 +84,29 @@ EOF
 setup_kubectl() {
     log_info "Setting up kubectl..."
     
-    # 等待 K3s 通过共享卷生成 kubeconfig
-    # 注意：docker-compose 将卷挂载到了 /root/.kube，普通用户需 sudo 访问
-    local kube_config_src="/root/.kube/kubeconfig.yaml"
+    # 直接从 K3s 容器复制 kubeconfig (比共享卷更可靠)
     local kube_config_dest="$HOME/.kube/config"
-    local max_attempts=60
-    local attempt=0
+    local container_name="devcontainer-k3s-1"
     
-    log_info "Waiting for kubeconfig at ${kube_config_src}..."
+    log_info "Attempting to copy kubeconfig from container ${container_name}..."
     
-    # 使用 sudo 检查文件是否存在
-    while ! sudo test -f "$kube_config_src" && [ $attempt -lt $max_attempts ]; do
-        attempt=$((attempt + 1))
-        echo -n "."
-        sleep 2
-    done
-    echo ""
+    # 确保目录存在
+    mkdir -p "$HOME/.kube"
     
-    if sudo test -f "$kube_config_src"; then
-        mkdir -p "$HOME/.kube"
+    # 尝试复制
+    if docker cp "${container_name}:/output/kubeconfig.yaml" "$kube_config_dest"; then
+        log_success "Kubeconfig copied successfully."
         
-        # 使用 sudo 复制，然后修改所有者为当前用户
-        sudo cp "$kube_config_src" "$kube_config_dest"
+        # 修改权限
         sudo chown $(id -u):$(id -g) "$kube_config_dest"
         chmod 600 "$kube_config_dest"
         
-        # 替换 localhost 为 k3s 服务名
-        if command -v sed &>/dev/null; then
-            sed -i 's/127.0.0.1/k3s/g' "$kube_config_dest" 2>/dev/null || true
-            sed -i 's/localhost/k3s/g' "$kube_config_dest" 2>/dev/null || true
-        fi
+        # 替换 API Server 地址
+        # 将 127.0.0.1 替换为 k3s 服务名，确保容器内能访问
+        sed -i 's/127.0.0.1/k3s/g' "$kube_config_dest" 2>/dev/null || true
+        sed -i 's/localhost/k3s/g' "$kube_config_dest" 2>/dev/null || true
         
-        # 设置环境变量以覆盖 docker-compose 中错误的默认值
+        # 写入环境变量
         export KUBECONFIG="$kube_config_dest"
         if ! grep -q "export KUBECONFIG=$kube_config_dest" ~/.zshrc; then
              echo "export KUBECONFIG=$kube_config_dest" >> ~/.zshrc
@@ -123,8 +114,8 @@ setup_kubectl() {
         
         log_success "kubectl configured at ${kube_config_dest}"
     else
-        log_error "kubeconfig not found at ${kube_config_src}."
-        log_info "Check if K3s is running: docker-compose --profile k8s ps"
+        log_error "Failed to copy kubeconfig. Is the K3s container running? (Name: ${container_name})"
+        log_info "Try running: docker ps | grep k3s"
         return 1
     fi
 }

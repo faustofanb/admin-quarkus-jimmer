@@ -11,7 +11,7 @@ services:
       - k3s-kubeconfig:/root/.kube # 共享 kubeconfig
     command: sleep infinity
     environment:
-      - KUBECONFIG=/root/.kube/config
+      - KUBECONFIG=/root/.kube/kubeconfig.yaml
     networks:
       - admin-network
 
@@ -66,7 +66,7 @@ services:
     volumes:
       - rancher-data:/var/lib/rancher
     ports:
-      - "8443:443" # Rancher UI (HTTPS)
+      - "9443:443" # Rancher UI (HTTPS)
       - "8080:80" # Rancher UI (HTTP redirect) - 注意与 Quarkus dev 冲突
     networks:
       - admin-network
