@@ -64,3 +64,4 @@ Easily start your REST Web Services
 # Test webhook after Gitea config 2026年 01月 23日 星期五 18:17:55 CST
 # Test full CI/CD 2026年 01月 23日 星期五 18:45:02 CST
 # Test CI/CD with CEL 2026年 01月 23日 星期五 18:45:59 CST
+# Test with maven task 2026年 01月 23日 星期五 18:46:40 CST
