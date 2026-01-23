@@ -1,0 +1,88 @@
+version: '3.8'
+services:
+  # ==================== DevContainer App ====================
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspaces/admin-quarkus-jimmer:cached
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: sleep infinity
+    networks:
+      - admin-network
+
+  # ==================== 开发数据库 (Docker Compose 模式) ====================
+  # 注意：K8s 部署时使用 k8s/base/postgresql.yaml
+  postgresql:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    networks:
+      - admin-network
+    profiles:
+      - dev # 仅开发模式使用，K8s 部署时不需要
+
+  # ==================== 开发 Redis (Docker Compose 模式) ====================
+  # 注意：K8s 部署时使用 k8s/base/redis.yaml
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - admin-network
+    profiles:
+      - dev # 仅开发模式使用，K8s 部署时不需要
+
+  # ==================== 监控服务 ====================
+#   grafana:
+#     image: grafana/grafana:latest
+#     ports:
+#       - "3000:3000"
+#     environment:
+#       - GF_SECURITY_ADMIN_PASSWORD=password
+#       - GF_USERS_ALLOW_SIGN_UP=false
+#     volumes:
+#       - grafana-data:/var/lib/grafana
+#     networks:
+#       - admin-network
+#     depends_on:
+#       - prometheus
+#     profiles:
+#       - monitoring
+
+#   prometheus:
+#     image: prom/prometheus:latest
+#     ports:
+#       - "9090:9090"
+#     volumes:
+#       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+#       - prometheus-data:/prometheus
+#     command:
+#       - '--config.file=/etc/prometheus/prometheus.yml'
+#       - '--storage.tsdb.path=/prometheus'
+#       - '--web.enable-lifecycle'
+#     networks:
+#       - admin-network
+#     profiles:
+#       - monitoring
+
+# ==================== Networks ====================
+networks:
+  admin-network:
+    driver: bridge
+
+# ==================== Volumes ====================
+volumes:
+  postgres-data:
+  redis-data:

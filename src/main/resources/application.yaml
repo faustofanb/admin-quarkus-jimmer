@@ -1,0 +1,406 @@
+# ===========================================
+# Admin System Application Configuration
+# ===========================================
+quarkus:
+    application:
+        name: admin-system
+        version: 1.0.0-SNAPSHOT
+
+    # HTTP Server
+    http:
+        port: 8080
+        # 测试或开发时可改为其他端口
+        # port: ${QUARKUS_HTTP_PORT:8080}
+
+    native:
+        additional-build-args:
+            - --initialize-at-run-time=org.babyfish.jimmer.sql.ScalarProviderManager$KotlinModuleRegister
+            - --initialize-at-run-time=org.h2.fulltext.FullTextLucene
+            - --initialize-at-run-time=org.h2.fulltext.FullTextLucene$FullTextTrigger
+            - --initialize-at-run-time=org.h2.store.fs.niomem.FileNioMemData
+            - --initialize-at-run-time=io.github.faustofan.admin.shared.async.executor.VirtualThreadExecutorFactory
+
+    # Datasource - PostgreSQL
+    datasource:
+        db-kind: postgresql
+        username: ${POSTGRES_USER:app}
+        password: ${POSTGRES_PASSWORD:}
+        jdbc:
+            # 开发环境连接本地 NodePort (30432), 数据库名 admin_system
+            # 生产环境通过环境变量覆盖
+            url: jdbc:p6spy:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:30432}/${POSTGRES_DB:admin_system}
+            driver: io.github.faustofan.admin.shared.observable.p6spy.P6SpyDriver
+
+    # Jimmer
+    jimmer:
+        active: true
+        show-sql: false
+        pretty-sql: false
+        # 启用事务触发器，用于实体生命周期事件发布
+        trigger-type: TRANSACTION_ONLY
+
+    # Redis
+    redis:
+        # 开发环境连接本地 NodePort (30379)
+        hosts: ${QUARKUS_REDIS_HOSTS:redis://localhost:30379}
+        password: ${QUARKUS_REDIS_PASSWORD:}
+
+    # Logging - Clean and aligned format
+    log:
+        console:
+            format: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%-35.35c{1.}] (%t) %s%e%n"
+        level: INFO
+        category:
+            "io.quarkus":
+                level: WARN
+            "org.flywaydb":
+                level: INFO
+            "io.github.fausto":
+                level: DEBUG
+            # Suppress noisy logs
+            "io.quarkus.opentelemetry":
+                level: ERROR
+            "io.opentelemetry":
+                level: ERROR
+            "org.apache.pulsar":
+                level: WARN
+
+    # OpenTelemetry - Disabled (no collector available)
+    otel:
+        sdk:
+            disabled: true
+
+    # Flyway
+    flyway:
+        migrate-at-start: true
+        locations: db/migration
+
+    # Jackson
+    jackson:
+        serialization-inclusion: non-null
+
+    # Virtual Threads (Java 21+)
+    virtual-threads:
+        enabled: true
+
+    # Dev Services - Disable all (no Docker required)
+    devservices:
+        enabled: false
+
+    # 注意：pulsar.devservices 需要 quarkus-messaging-pulsar 扩展
+    # 如果需要 Pulsar 支持，请添加依赖后取消注释
+    # pulsar:
+    #     devservices:
+    #         enabled: false
+
+    # Swagger UI
+    swagger-ui:
+        always-include: true
+        path: /swagger-ui
+
+    # OpenAPI
+    smallrye-openapi:
+        info-title: Admin System API
+        info-version: 1.0.0
+        path: /openapi
+
+    # Health Check (K8s Probes)
+    smallrye-health:
+        root-path: /q/health
+        liveness-path: /q/health/live
+        readiness-path: /q/health/ready
+
+# ===========================================
+# JWT Security
+# ===========================================
+mp:
+    jwt:
+        verify:
+            publickey:
+                location: publicKey.pem
+            issuer: https://io.github.faustofan
+
+smallrye:
+    jwt:
+        sign:
+            key:
+                location: privateKey.pem
+# ===========================================
+# Application Custom Config
+# ===========================================
+app:
+    observable:
+        enabled: true
+        log:
+            enabled: true
+            http:
+                enabled: true
+                log-headers: true
+                log-body: true
+                max-body-length: 2000
+                sensitive-headers: Authorization,Cookie,Set-Cookie
+#                exclude-patterns: ^/q/.*|^/swagger-ui.*|^/openapi.*|^/health.*|^/metrics.*|^/admin/api/v1/monitoring/metrics
+                slow-threshold-ms: 3000
+            sql:
+                enabled: true
+                pretty-print: true
+                log-parameters: true
+                log-row-count: true
+                max-length: 5000
+                slow-threshold-ms: 1000
+        metrics:
+            enabled: true
+        trace:
+            enabled: true
+            sample-rate: 0.1
+    # ============ Cache Configuration ============
+    # 二级缓存：本地 L1 (Caffeine) + Redis L2
+    cache:
+        enabled: true
+        default-strategy: TWO_LEVEL # LOCAL_ONLY / REDIS_ONLY / TWO_LEVEL / READ_WRITE_THROUGH / WRITE_BEHIND
+        default-ttl: PT1H # 默认 TTL 1 小时
+        null-value-ttl: PT2M # 空值占位 TTL 2 分钟（防穿透）
+        ttl-jitter-enabled: true # TTL 随机抖动（防雪崩）
+        max-ttl-jitter: PT5M # 最大抖动 5 分钟
+
+        bloom-filter:
+            enabled: true # 布隆过滤器（防击穿）
+            expected-insertions: 100000 # 单机环境减少内存占用
+            false-positive-rate: 0.01
+
+        local:
+            enabled: true
+            maximum-size: 10000 # 本地缓存最大条目数 (单机优化)
+            expire-after-write: PT10M # 本地缓存默认过期时间
+
+        redis:
+            enabled: true
+            key-prefix: "admin:" # 所有 Redis 键统一前缀
+            timeout: PT5S # Redis 命令超时
+            compression-enabled: false
+            compression-threshold: 1024
+
+    # ============ Distributed Configuration ============
+    # 分布式锁、唯一 ID、幂等检查
+    distributed:
+        enabled: true # 总开关
+        lock:
+            type: REDIS # LOCAL / REDIS / AUTO
+            wait-time: PT10S # 获取锁最大等待时间
+            lease-time: PT30S # 锁租约时间（自动过期）
+            retry-interval: PT0.05S # 重试间隔
+        id-generator:
+            type: SNOWFLAKE # 雪花算法
+            datacenter-id: 1 # 数据中心 ID（0~31）
+            worker-id: 1 # 机器 ID（0~31）
+        idempotent:
+            enabled: true # 幂等检查开启
+            ttl: PT1H # 幂等键默认存活时间
+
+
+    # ============ Messaging Configuration ============
+    messaging:
+        enabled: true # 总开关
+        channel: LOCAL # 默认使用本地 CDI 事件
+        delivery-mode: FIRE_AND_FORGET # 投递模式
+
+        # 本地通道配置（CDI 事件）
+        local:
+            enabled: true
+            async: true # 使用 fireAsync 异步发布
+            async-timeout: 5s # 异步发布超时时间
+
+        # Pulsar 通道配置（已关闭）
+        pulsar:
+            enabled: false # Pulsar 已关闭
+        #            service-url: pulsar://localhost:6650
+        #            tenant: public
+        #            namespace: default
+        #            subscription-prefix: admin-
+        #            send-timeout: 10s
+        #            batching-enabled: true
+        #            batch-max-bytes: 131072
+        #            batch-max-messages: 1000
+        #            batch-max-delay: 10ms
+
+        # Stream 通道配置（Mutiny 响应式流）
+        stream:
+            enabled: true
+            buffer-size: 128 # 背压缓冲区大小
+            backpressure-strategy: DROP # DROP / LATEST / ERROR
+
+    # 可用性基础设施配置示例
+    availability:
+        # 是否启用可用性保护
+        enabled: true
+
+        # ===========================
+        # 限流配置
+        # ===========================
+        rate-limit:
+            # 是否启用限流
+            enabled: true
+            # 限流算法: FIXED_WINDOW, SLIDING_WINDOW, TOKEN_BUCKET, LEAKY_BUCKET, CONCURRENT
+            algorithm: SLIDING_WINDOW
+            # 默认每窗口允许的请求数
+            default-permits: 100
+            # 默认时间窗口
+            default-window: PT1S
+            # 最小请求间隔（0表示不限制）
+            min-spacing: PT0S
+            # 是否使用分布式限流（Redis）
+            distributed: false
+            # 分布式限流同步间隔
+            sync-interval: PT1S
+
+        # ===========================
+        # 熔断器配置
+        # ===========================
+        circuit-breaker:
+            # 是否启用熔断器
+            enabled: true
+            # 失败率阈值（0.0-1.0），超过此值则打开熔断器
+            failure-ratio: 0.5
+            # 请求量阈值（用于计算失败率的最小请求数）
+            request-volume-threshold: 20
+            # 熔断延迟时间（从 OPEN 状态到 HALF_OPEN 状态的等待时间）
+            delay: PT5S
+            # 成功阈值（半开状态需要成功的请求数才能关闭熔断器）
+            success-threshold: 5
+            # 滚动窗口大小
+            rolling-window: 10
+            # 失败时应跳过的异常类型（逗号分隔的全限定类名）
+            skip-on: ""
+            # 应视为失败的异常类型（逗号分隔的全限定类名）
+            fail-on: ""
+
+        # ===========================
+        # 重试配置
+        # ===========================
+        retry:
+            # 是否启用重试
+            enabled: true
+            # 最大重试次数
+            max-retries: 3
+            # 重试延迟
+            delay: PT0.2S
+            # 重试策略: FIXED, EXPONENTIAL, FIBONACCI, RANDOM, IMMEDIATE
+            strategy: EXPONENTIAL
+            # 抖动时间（随机增加的延迟时间，避免重试风暴）
+            jitter: PT0.05S
+            # 最大延迟时间
+            max-delay: PT2S
+            # 应重试的异常类型（逗号分隔的全限定类名）
+            retry-on: ""
+            # 不应重试的异常类型（逗号分隔的全限定类名）
+            abort-on: ""
+
+        # ===========================
+        # 超时配置
+        # ===========================
+        timeout:
+            # 是否启用超时
+            enabled: true
+            # 默认超时时间
+            default-duration: PT5S
+            # 是否启用超时指标收集
+            metrics-enabled: true
+
+        # ===========================
+        # 隔离舱配置
+        # ===========================
+        bulkhead:
+            # 是否启用隔离舱
+            enabled: true
+            # 最大并发调用数
+            max-concurrent-calls: 10
+            # 等待任务队列大小
+            waiting-task-queue: 10
+            # 等待超时（0表示不等待，直接拒绝）
+            wait-timeout: PT0S
+
+        # ===========================
+        # 降级配置
+        # ===========================
+        degradation:
+            # 是否启用降级
+            enabled: true
+            # 全局降级开关（谨慎使用）
+            force-degraded: false
+            # 降级模式下的超时时间
+            degraded-timeout: PT1S
+
+    # ============ Security Configuration ============
+    # 认证与授权模块配置
+    security:
+        enabled: true
+        jwt:
+            issuer: admin-quarkus-jimmer
+            access-token-expiration: PT30M    # 访问令牌30分钟
+            refresh-token-expiration: P7D      # 刷新令牌7天
+            clock-skew: PT1M                   # 时钟偏移容忍
+        session:
+            timeout: PT30M                     # 会话超时30分钟
+            single-device-login: false         # 是否单设备登录
+            renew-threshold: PT5M              # 会话续期阈值
+        password:
+            min-length: 6
+            max-length: 32
+            bcrypt-strength: 10
+            lock-attempts: 5                   # 登录失败5次锁定
+            lock-duration: PT30M               # 锁定30分钟
+        whitelist:
+            enable-defaults: true
+            paths: []
+            default-paths: /auth/login,/auth/refresh,/q/health,/q/metrics,/openapi,/swagger-ui
+
+# ===========================================
+# Production Profile Overrides
+# ===========================================
+"%prod":
+    quarkus:
+        # 关闭 Swagger UI
+        swagger-ui:
+            always-include: false
+
+        # 生产环境使用标准 JDBC 驱动 (移除 P6Spy)
+        datasource:
+            username: ${POSTGRES_USER}
+            password: ${POSTGRES_PASSWORD}
+            jdbc:
+                # 注意: 使用 ops-platform 中定义的服务名
+                url: jdbc:postgresql://postgresql.middleware.svc:5432/${POSTGRES_DB:admin_system}
+                driver: org.postgresql.Driver
+
+        # 生产环境 Redis (匹配 ops-platform/manifests/middleware/redis)
+        redis:
+            hosts: redis://redis.middleware.svc:6379
+            password: ${QUARKUS_REDIS_PASSWORD}
+
+        # 生产环境不需要休眠时 sql 格式化
+        hibernate-orm:
+            log:
+                sql: false
+
+    app:
+        observable:
+            log:
+                # 生产环境减少 HTTP Body 日志
+                http:
+                    log-body: false
+                    log-headers: false
+
+# ===========================================
+# Test Profile Overrides (CI/Unit Test)
+# ===========================================
+"%test":
+    quarkus:
+        datasource:
+            # 测试环境禁用 P6Spy，使用标准驱动
+            jdbc:
+                driver: org.postgresql.Driver
+                url: jdbc:postgresql://localhost:5432/admin_test
+        
+        # 禁用一些耗时的特性
+        redis:
+            hosts: redis://localhost:6379 

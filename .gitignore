@@ -1,0 +1,103 @@
+# =====================================
+# Admin Quarkus Jimmer - Git Ignore
+# =====================================
+
+# ========== Maven ==========
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+.flattened-pom.xml
+
+# ========== IDE ==========
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# IntelliJ IDEA
+.idea/
+*.ipr
+*.iml
+*.iws
+
+# NetBeans
+nb-configuration.xml
+
+# Visual Studio Code
+.vscode/
+.factorypath
+
+# ========== OS ==========
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# ========== Editor ==========
+# Vim
+*.swp
+*.swo
+*.swn
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# ========== Patch ==========
+*.orig
+*.rej
+*.patch
+
+# ========== Local Environment ==========
+.env
+.env.local
+.env.*.local
+
+# ========== Quarkus ==========
+/.quarkus/cli/plugins/
+
+# TLS Certificates
+.certs/
+
+# Native Build
+*-runner
+*-runner.jar
+
+# ========== Logs ==========
+*.log
+logs/
+
+# ========== Ops Platform ==========
+# 敏感环境变量（仅保留模板）
+ops-platform/.env
+
+# 持久化数据目录 (K3s PVC 数据)
+ops-platform/.data/
+
+# 安全凭证
+ops-platform/security/*.pem
+ops-platform/security/*.key
+ops-platform/security/kubeconfig
+ops-platform/security/credentials/
+
+# Helm 临时文件
+ops-platform/helm/**/charts/
+ops-platform/helm/**/*.tgz
+
+# ========== Temp Files ==========
+*.tmp
+*.bak
+*.backup

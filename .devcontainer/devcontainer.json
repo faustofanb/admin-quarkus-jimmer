@@ -1,0 +1,74 @@
+{
+    "name": "Admin System Dev Container",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "devcontainer",
+    "workspaceFolder": "/workspaces/admin-quarkus-jimmer",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "20"
+        },
+        "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+            "version": "latest",
+            "helm": "latest",
+            "minikube": "none"
+        },
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": "true",
+            "upgradePackages": "false",
+            "uid": "1000",
+            "gid": "1000",
+            "installOhMyZsh": "true",
+            "nonFreePackages": "true"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "vscjava.vscode-java-pack",
+                "vmware.vscode-boot-dev-pack",
+                "redhat.vscode-yaml",
+                "codezombiech.gitignore",
+                "dotjoshjohnson.xml",
+                "mhutchie.git-graph",
+                "oderwat.indent-rainbow",
+                "ms-ceintl.vscode-language-pack-zh-hans",
+                "ms-azuretools.vscode-containers",
+                "ms-kubernetes-tools.vscode-kubernetes-tools",
+                "redhat.vscode-kubernetes",
+                "github.vscode-github-actions"
+            ],
+            "settings": {
+                "java.configuration.updateBuildConfiguration": "automatic",
+                "editor.formatOnSave": true,
+                "vs-kubernetes": {
+                    "vs-kubernetes.kubeconfig": "/root/.kube/config"
+                }
+            }
+        }
+    },
+    "forwardPorts": [
+        8080,
+        8081,
+        8082,
+        5005,
+        5173,
+        5432,
+        6379,
+        9876,
+        10911,
+        10909,
+        7700,
+        9000,
+        9001,
+        3000,
+        3100,
+        9090,
+        6443,
+        8443,
+        30080,
+        30081,
+        30082
+    ],
+    "postStartCommand": "sudo chmod 666 /var/run/docker.sock && chmod +x .devcontainer/scripts/*.sh",
+    "remoteUser": "vscode"
+}
