@@ -14,6 +14,9 @@ spec:
     type: string
   - name: image-tag
     type: string
+  - default: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
+    name: gitops-repo-url
+    type: string
   - default: gitops/apps/admin-server/overlays/test
     name: overlay-path
     type: string
@@ -22,6 +25,7 @@ spec:
   - name: maven-settings
   - name: maven-local-repo
     optional: true
+  - name: gitops-workspace
   tasks:
   - name: fetch-source
     params:
@@ -45,7 +49,7 @@ spec:
     - fetch-source
     taskRef:
       kind: Task
-      name: quarkus-maven-kaniko-push
+      name: quarkus-maven-jib-push
     workspaces:
     - name: source
       workspace: shared-data
@@ -53,6 +57,8 @@ spec:
       workspace: maven-settings
   - name: update-gitops-repo
     params:
+    - name: gitops-repo-url
+      value: $(params.gitops-repo-url)
     - name: image-name
       value: $(params.image-name)
     - name: image-tag
@@ -65,5 +71,5 @@ spec:
       kind: Task
       name: update-gitops-repo
     workspaces:
-    - name: source
-      workspace: shared-data
+    - name: gitops-source
+      workspace: gitops-workspace

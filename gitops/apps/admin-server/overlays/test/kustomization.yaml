@@ -13,8 +13,8 @@ commonLabels:
   environment: test
 
 images:
-- name: nginx
-  newTag: latest
+- name: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/admin-server
+  newTag: jvm-latest
 
 patches:
 - patch: |-

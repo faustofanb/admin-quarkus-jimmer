@@ -14,10 +14,10 @@ spec:
     spec:
       containers:
       - name: admin-server
-        image: nginx:latest
+        image: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/admin-server:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 80
+        - containerPort: 8080
           name: http
         env:
         - name: SPRING_PROFILES_ACTIVE
@@ -31,13 +31,13 @@ spec:
             cpu: "1000m"
         livenessProbe:
           httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
+            path: /q/health/live
+            port: 8080
+          initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
+            path: /q/health/ready
+            port: 8080
+          initialDelaySeconds: 15
           periodSeconds: 5
