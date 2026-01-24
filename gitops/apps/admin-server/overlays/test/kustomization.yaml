@@ -14,7 +14,7 @@ commonLabels:
 
 images:
 - name: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/admin-server
-  newTag: jvm-latest
+  newTag: "jvm-kaniko-latest"
 
 patches:
 - patch: |-
