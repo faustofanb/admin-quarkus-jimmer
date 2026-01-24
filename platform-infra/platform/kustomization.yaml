@@ -25,4 +25,4 @@ helmCharts:
     namespace: platform
     valuesFile: gitea/values.yaml
 
-namespace: platform
+
