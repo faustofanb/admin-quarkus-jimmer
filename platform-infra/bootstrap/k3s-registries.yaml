@@ -19,8 +19,14 @@ mirrors:
       - "http://nexus.local:5000"
 configs:
   "nexus.local:5000":
+    auth:
+      username: admin
+      password: 318a37cc-efed-4101-b9a4-141671dd6b93
     tls:
-      insecure_skip_verify: true 
-  "nexus.local:5001": 
+      insecure_skip_verify: true
+  "nexus.local:5001":
+    auth:
+      username: admin
+      password: 318a37cc-efed-4101-b9a4-141671dd6b93
     tls:
       insecure_skip_verify: true

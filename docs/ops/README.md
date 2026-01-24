@@ -18,6 +18,8 @@
 | Gitea | https://gitea.local/ | platform | Git 代码仓库 |
 | Kuboard v3 | https://kuboard.local/ | kuboard | 集群管理 UI |
 | Tekton Dashboard | https://tekton.local/ | tekton-pipelines | Tekton UI（查看 Pipeline/TaskRun） |
+| APP-Test | https://api-test.local/ | quarkus-test | 应用测试环境 - JVM构建 |
+| APP-Pre  | https://api-pre.local/ | quarkus-pre | 应用预发布环境 - native构建|
 
 ### 1.1 /etc/hosts 示例
 
@@ -301,8 +303,55 @@ kubectl run test-registry --rm -i --image=curlimages/curl -- \
 - 用途: Kubernetes 拉取镜像
 - 包含: docker-hosted + docker-proxy (Docker Hub)
 
-**注意**: 
-- 推送和拉取使用不同端口
-- docker-group 会自动聚合 docker-hosted 的镜像
-- 如果拉取失败，检查 docker-group 配置
+## 7. 平台运维 (Operations)
+
+所有的基础设施配置代码化存储在 `platform-infra` 目录中。
+
+### 7.1 自动化脚本 (`setup.sh`)
+
+位于 `platform-infra/scripts/setup.sh`，支持幂等操作：
+
+```bash
+# 1. 配置 /etc/hosts 映射 (argocd.local, nexus.local 等)
+./setup.sh hosts
+
+# 2. 部署基础组件 (Ingress, MetalLB, Cert-Manager, Argo CD) - 幂等
+./setup.sh bootstrap
+
+# 3. 安装平台层 (Nexus, Gitea, Tekton, Middleware) - 移交 Argo CD
+./setup.sh install
+
+# 4. 验证环境健康状态 (DNS, Pods, Nexus 端口)
+./setup.sh verify
+```
+
+### 7.2 运维辅助脚本 (`manage.sh`)
+
+位于 `platform-infra/scripts/manage.sh`：
+
+```bash
+# 查看整体状态
+./manage.sh status
+
+# 等待平台就绪
+./manage.sh wait-ready
+
+# 诊断问题 (失败 Pod, PVC, Warning 事件)
+./manage.sh diag
+```
+
+### 7.3 关键自动化机制
+
+1.  **Nexus 初始化**:
+    - **机制**: K8s Job (`nexus-init-job`) + Groovy 脚本
+    - **触发**: Argo CD 同步 `platform-infra/platform/nexus` 时自动运行
+    - **功能**: 自动创建 Maven (hosted/proxy/group) 和 Docker (hosted/proxy/group) 仓库，无需人工登录 UI 配置。
+
+2.  **K3s 镜像加速**:
+    - **配置文件**: `platform-infra/bootstrap/k3s-registries.yaml`
+    - **效果**: 强制 K3s 节点拉取 `docker.io`, `quay.io`, `gcr.io` 等镜像时，代理到 `nexus.local:5000`。
+
+3.  **Maven 统一配置**:
+    - **配置文件**: `platform-infra/platform/tekton/config/maven-settings.yaml`
+    - **效果**: Tekton Pipeline 全局挂载此 ConfigMap，强制所有构建流量走 Nexus `maven-public` 组。
 
