@@ -4,5 +4,5 @@ controller:
   allowSnippetAnnotations: false
 
 tcp:
-  5000: "platform/nexus-nexus-repository-manager:5000"
-  5001: "platform/nexus-nexus-repository-manager:5001"
+  5000: "platform/nexus:5000"
+  5001: "platform/nexus:5001"

@@ -1,3 +1,4 @@
+fullnameOverride: nexus
 persistence:
   enabled: true
   size: 20Gi

@@ -27,7 +27,7 @@ spec:
         args:
         - |
           echo "Waiting for Nexus to be ready..."
-          until curl -s -f -u $NEXUS_USER:$NEXUS_PASS http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/status; do
+          until curl -s -f -u $NEXUS_USER:$NEXUS_PASS http://nexus.platform.svc.cluster.local:8081/service/rest/v1/status; do
             echo "Nexus not ready..."
             sleep 10
           done
@@ -35,11 +35,11 @@ spec:
           echo "Uploading script..."
           curl -v -u $NEXUS_USER:$NEXUS_PASS -X POST -H "Content-Type: application/json" \
             -d "{\"name\":\"init_repos\",\"type\":\"groovy\",\"content\": \"$(cat /scripts/init_repos.groovy | sed 's/\"/\\\"/g' | tr '\n' '\\n')\"}" \
-            http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/script || true # Ignore if exists
+            http://nexus.platform.svc.cluster.local:8081/service/rest/v1/script || true # Ignore if exists
           
           echo "Executing script..."
           curl -v -u $NEXUS_USER:$NEXUS_PASS -X POST -H "Content-Type: text/plain" \
-            http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/script/init_repos/run
+            http://nexus.platform.svc.cluster.local:8081/service/rest/v1/script/init_repos/run
         volumeMounts:
         - name: scripts-volume
           mountPath: /scripts

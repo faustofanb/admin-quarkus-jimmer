@@ -14,7 +14,7 @@
 *   **如何使用**：
     *   **集群内访问**：使用 `<service-name>.<namespace>.svc.cluster.local` 格式。
         *   例：Gitea 访问数据库 -> `postgresql.middleware.svc.cluster.local`
-        *   例：Tekton 推送镜像 -> `nexus-nexus-repository-manager.platform.svc.cluster.local`
+        *   例：Tekton 推送镜像 -> `nexus.platform.svc.cluster.local`
     *   **集群外访问**：通过 Ingress Controller (Nginx) 暴露的 HTTP/HTTPS 路由。
         *   例：用户访问 Argo CD -> `https://argocd.local/` (映射到 Ingress LB IP)
 

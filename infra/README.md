@@ -56,7 +56,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 
 获取初始密码：
 ```bash
-kubectl -n platform exec -it deployment/nexus-nexus-repository-manager -- cat /nexus-data/admin.password
+kubectl -n platform exec -it deployment/nexus -- cat /nexus-data/admin.password
 ```
 
 **Nexus Docker Registry**:
@@ -66,7 +66,7 @@ kubectl -n platform exec -it deployment/nexus-nexus-repository-manager -- cat /n
 
 > OCI 镜像仓库策略：
 > - HTTP registry 注意：Jib 默认不在 HTTP 连接上发送凭据，需要额外开启 `-DsendCredentialsOverHttp=true`（已在 Tekton Task 中配置）。
-> - Pod 内访问应使用 k8s Service 域名：`nexus-nexus-repository-manager.platform.svc.cluster.local:5000/5001`
+> - Pod 内访问应使用 k8s Service 域名：`nexus.platform.svc.cluster.local:5000/5001`
 
 ### 2.3 Gitea
 
@@ -188,11 +188,11 @@ spec:
     name: quarkus-native-cicd-pipeline
   params:
   - name: git-url
-    value: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
+    value: http://gitea.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
   - name: git-revision
     value: main
   - name: image-name
-    value: nexus-nexus-repository-manager.platform.svc.cluster.local:5001/admin-server
+    value: nexus.platform.svc.cluster.local:5001/admin-server
   - name: image-tag
     value: native-v1.0.0-$(date +%Y%m%d)
   - name: overlay-path
@@ -258,14 +258,14 @@ kubectl logs -n tekton-pipelines -l tekton.dev/pipelineRun=<name>,tekton.dev/pip
 ```bash
 # 1. 验证镜像是否存在
 curl -u admin:318a37cc-efed-4101-b9a4-141671dd6b93 \
-  "http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/search?repository=docker-hosted&name=admin-server"
+  "http://nexus.platform.svc.cluster.local:8081/service/rest/v1/search?repository=docker-hosted&name=admin-server"
 
 # 2. 检查 Nexus Service 端口
-kubectl get svc -n platform nexus-nexus-repository-manager -o yaml
+kubectl get svc -n platform nexus -o yaml
 
 # 3. 测试从 Pod 内访问
 kubectl run test-registry --rm -i --image=curlimages/curl -- \
-  curl -v http://nexus-nexus-repository-manager.platform.svc.cluster.local:5000/v2/_catalog
+  curl -v http://nexus.platform.svc.cluster.local:5000/v2/_catalog
 ```
 
 **可能原因**:
@@ -295,11 +295,11 @@ kubectl run test-registry --rm -i --image=curlimages/curl -- \
 ### 8.6 镜像仓库配置
 
 **推送端口**: 5001 (docker-hosted)
-- 地址: `nexus-nexus-repository-manager.platform.svc.cluster.local:5001`
+- 地址: `nexus.platform.svc.cluster.local:5001`
 - 用途: Kaniko 推送镜像
 
 **拉取端口**: 5000 (docker-group，聚合)
-- 地址: `nexus-nexus-repository-manager.platform.svc.cluster.local:5000`
+- 地址: `nexus.platform.svc.cluster.local:5000`
 - 用途: Kubernetes 拉取镜像
 - 包含: docker-hosted + docker-proxy (Docker Hub)
 

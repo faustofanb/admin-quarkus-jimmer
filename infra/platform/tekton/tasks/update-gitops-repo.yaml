@@ -39,7 +39,7 @@ spec:
       git config --global user.name "$(params.git-username)"
       git config --global user.email "$(params.git-email)"
 
-      REPO_URL="http://${GITEA_USERNAME}:${GITEA_TOKEN}@gitea-http.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git"
+      REPO_URL="http://${GITEA_USERNAME}:${GITEA_TOKEN}@gitea.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git"
 
       echo "Cloning GitOps repository..."
       git clone $REPO_URL repo

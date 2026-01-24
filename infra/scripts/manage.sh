@@ -71,7 +71,7 @@ restart() {
       log "Restarted Gitea"
       ;;
     nexus)
-      kubectl rollout restart deployment/nexus-nexus-repository-manager -n platform
+      kubectl rollout restart deployment/nexus -n platform
       log "Restarted Nexus"
       ;;
     argocd)
