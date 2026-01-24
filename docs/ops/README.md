@@ -13,69 +13,97 @@
 | 服务 | URL | Namespace | 说明 |
 |---|---|---|---|
 | Argo CD | https://argocd.local/ | argocd | GitOps/CD 控制面 |
-| Nexus OSS | https://nexus.local/ | platform | Maven/OCI/Helm 制品仓库 |
+| Nexus OSS | https://nexus.local/ | platform | Maven/OCI/Helm 制品仓库（UI/REST） |
+| Nexus Docker Registry (OCI) | http(s)://nexus.local:5000/ (pull, docker-group)\nhttp(s)://nexus.local:5001/ (push, docker-hosted) | platform | 镜像 push/pull（端口已固定：group=5000, hosted=5001） |
 | Gitea | https://gitea.local/ | platform | Git 代码仓库 |
 | Kuboard v3 | https://kuboard.local/ | kuboard | 集群管理 UI |
-| Tekton Pipelines | （无 UI） | tekton-pipelines | CI 执行引擎（可选后续再装 Dashboard） |
+| Tekton Dashboard | https://tekton.local/ | tekton-pipelines | Tekton UI（查看 Pipeline/TaskRun） |
 
 ### 1.1 /etc/hosts 示例
 
 在需要访问的平台机器上添加（或用 `platform-infra/scripts/setup.sh hosts` 生成托管段）：
 
 ```text
-192.168.10.100  argocd.local nexus.local gitea.local kuboard.local
+192.168.10.100  argocd.local nexus.local gitea.local kuboard.local tekton.local
 ```
 
 > 说明：由于 `verge-mihomo` 占用 53 端口且不可改造，本平台暂不提供 dnsmasq。
 
-## 2. 凭据与密码获取方式（不入库）
+## 2. 平台凭据（明文）
 
-以下命令会输出敏感信息，请在可信终端执行并妥善保管。
+> ⚠️ 以下为内网开发环境凭据，仅供个人使用。
+> 
+> **重要**：根据项目要求，凭据必须以明文形式保存在文档中，禁止使用 SOPS 等加密方案。
 
 ### 2.1 Argo CD
 
-获取初始 admin 密码：
+- **URL**: https://argocd.local/
+- **Username**: `admin`
+- **Password**: `krdV05gYOArDsVeg`
 
+获取/更新密码：
 ```bash
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath='{.data.password}' | base64 -d; echo
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 ```
 
 ### 2.2 Nexus OSS
 
-Nexus 初始密码通常在 Pod 内（首次启动生成）：
+- **URL**: https://nexus.local/
+- **Username**: `admin`
+- **Password**: `318a37cc-efed-4101-b9a4-141671dd6b93`
 
+获取初始密码：
 ```bash
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-kubectl -n platform exec deploy/nexus-nexus-repository-manager -- \
-  cat /nexus-data/admin.password; echo
+kubectl -n platform exec -it deployment/nexus-nexus-repository-manager -- cat /nexus-data/admin.password
 ```
 
-建议：首次登录后立即在 UI 中修改 admin 密码。
+**Nexus Docker Registry**:
+- Pull (docker-group): `http://nexus.local:5000/`
+- Push (docker-hosted): `http://nexus.local:5001/`
+- Username/Password: 同 Nexus UI 凭据
+
+> OCI 镜像仓库策略：
+> - HTTP registry 注意：Jib 默认不在 HTTP 连接上发送凭据，需要额外开启 `-DsendCredentialsOverHttp=true`（已在 Tekton Task 中配置）。
+> - Pod 内访问应使用 k8s Service 域名：`nexus-nexus-repository-manager.platform.svc.cluster.local:5000/5001`
 
 ### 2.3 Gitea
 
-本次 bootstrap 期间创建了管理员账号（用户名固定），密码**不要写入仓库**；如忘记密码，建议通过 kubectl 查找 chart 生成的 secret 或直接在 Pod 内重置。
+- **URL**: https://gitea.local/
+- **Username**: `gitea_admin`
+- **Password**: `admin123`（已简化）
+- **Personal Access Token**: `fcd484a9cb8bdae6d8add29cdfa8b621676a5ea7`（用于 Tekton GitOps）
 
-查看管理员账号是否存在：
-
+重置密码：
 ```bash
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-kubectl -n platform exec deploy/gitea -- gitea admin user list
-```
-
-重置管理员密码（示例，将 <NEW_PASSWORD> 替换为新密码）：
-
-```bash
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 kubectl -n platform exec deploy/gitea -- \
-  gitea admin user change-password --username gitea_admin --password '<NEW_PASSWORD>'
+  gitea admin user change-password --username gitea_admin --password 'FanBiao@20000204'
+# 取消强制修改密码标记（如需要）
+kubectl exec -n middleware sts/postgresql -- psql -U postgres -d gitea -c \
+  "UPDATE \"user\" SET must_change_password = false WHERE name = 'gitea_admin';"
 ```
 
 ### 2.4 Kuboard v3
 
-Kuboard 默认会创建 admin 用户（默认密码请按 Kuboard 文档或 UI 提示设置/查看），建议首次登录后立即修改。
+- **URL**: https://kuboard.local/
+- **Username**: `admin`
+- **Password**: `Kuboard123`
+
+### 2.5 Tekton Dashboard
+
+- **URL**: https://tekton.local/
+- **说明**: 无需登录，已配置为可编辑模式（可创建、重新运行 PipelineRun）
+
+### 2.6 中间件（PostgreSQL / Redis）
+
+**PostgreSQL**:
+- Host (集群内): `postgresql.middleware.svc.cluster.local:5432`
+- Username: `postgres`
+- Password: `postgres123`
+- Databases: `platform`, `gitea`
+
+**Redis**:
+- Host (集群内): `redis.middleware.svc.cluster.local:6379`
+- Password: `redis123`
 
 ## 3. 整体架构（当前落地）
 
@@ -114,7 +142,7 @@ Middleware:
 3) Tekton Pipeline：
    - clone 代码
    - Maven 构建（通过 `maven-settings` 强制走 **Nexus Maven group**）
-   - 构建 OCI 镜像（kaniko，待补齐）并推送到 **Nexus docker group/hosted**
+   - 构建 OCI 镜像（Quarkus + Jib，无 Docker）并推送到 **Nexus docker-hosted:5001**（拉取走 docker-group:5000）
    - 更新 `apps-deploy` 中对应 overlay 的镜像 tag 并提交
 4) **Argo CD** 监听 `apps-deploy`：
    - test 环境自动同步
@@ -129,3 +157,152 @@ Middleware:
 
 - `cicd-platform-plan.md`：搭建计划与阶段性 checklist
 - `versions.env.example`：版本锁定示例
+
+## 8. Native 构建说明
+
+### 8.1 Native vs JVM
+
+| 特性 | JVM 模式 | Native 模式 |
+|------|----------|-------------|
+| 启动时间 | ~2-3秒 | ~50ms |
+| 内存占用 | ~200-300MB | ~50-100MB |
+| 镜像大小 | ~300MB | ~150MB |
+| 构建时间 | ~30秒 | ~4分钟 |
+| 热部署 | 支持 | 不支持 |
+| 适用场景 | 开发/测试 | 生产环境 |
+
+### 8.2 触发 Native 构建
+
+**方式 1: 手动触发 PipelineRun**
+```bash
+kubectl create -f - <<YAML
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: native-build-
+  namespace: tekton-pipelines
+spec:
+  pipelineRef:
+    name: quarkus-native-cicd-pipeline
+  params:
+  - name: git-url
+    value: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
+  - name: git-revision
+    value: main
+  - name: image-name
+    value: nexus-nexus-repository-manager.platform.svc.cluster.local:5001/admin-server
+  - name: image-tag
+    value: native-v1.0.0-$(date +%Y%m%d)
+  - name: overlay-path
+    value: apps/admin-server/overlays/pre
+  workspaces:
+  - name: shared-data
+    volumeClaimTemplate:
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 10Gi
+  - name: maven-settings
+    configMap:
+      name: maven-settings
+  - name: gitops-workspace
+    emptyDir: {}
+  timeouts:
+    pipeline: "2h"
+YAML
+```
+
+**方式 2: 通过 Tekton Dashboard**
+1. 访问 https://tekton.local/
+2. 选择 `tekton-pipelines` namespace
+3. 点击 `Pipelines` → `quarkus-native-cicd-pipeline`
+4. 点击 `Create PipelineRun`
+5. 填写参数并提交
+
+### 8.3 监控构建进度
+
+```bash
+# 查看最新的 PipelineRun
+kubectl get pipelinerun -n tekton-pipelines --sort-by=.metadata.creationTimestamp | tail -5
+
+# 实时查看日志
+kubectl logs -n tekton-pipelines -l tekton.dev/pipelineRun=<name>,tekton.dev/pipelineTask=build-native-binary -f
+```
+
+或在 Tekton Dashboard 中查看可视化进度。
+
+### 8.4 已知问题和解决方案
+
+#### 问题 1: GitOps 更新失败
+**现象**: Pipeline 的 `update-gitops` 步骤失败，显示认证错误
+
+**临时方案**: 手动更新 GitOps 仓库
+1. 访问 https://gitea.local/gitea_admin/apps-deploy
+2. 导航到 `apps/admin-server/overlays/pre/kustomization.yaml`
+3. 点击编辑按钮
+4. 修改 `newTag` 为构建的镜像标签（如 `native-v1.0.0-20260124`）
+5. 提交更改
+6. Argo CD 将在 30 秒内自动同步
+
+**永久方案**（待实现）:
+- 使用 Gitea Personal Access Token 替代密码认证
+- 或改用 Kubernetes API 直接更新
+
+#### 问题 2: 镜像拉取失败
+**现象**: Pod 无法从 Nexus 拉取 Native 镜像
+
+**排查步骤**:
+```bash
+# 1. 验证镜像是否存在
+curl -u admin:318a37cc-efed-4101-b9a4-141671dd6b93 \
+  "http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/search?repository=docker-hosted&name=admin-server"
+
+# 2. 检查 Nexus Service 端口
+kubectl get svc -n platform nexus-nexus-repository-manager -o yaml
+
+# 3. 测试从 Pod 内访问
+kubectl run test-registry --rm -i --image=curlimages/curl -- \
+  curl -v http://nexus-nexus-repository-manager.platform.svc.cluster.local:5000/v2/_catalog
+```
+
+**可能原因**:
+- NetworkPolicy 阻止跨 namespace 访问
+- Nexus Docker Registry 端口未正确暴露
+- 镜像推送实际未成功
+
+#### 问题 3: 构建时间过长
+**现象**: Native 构建耗时 20-30 分钟
+
+**优化方案**:
+1. 调整 GraalVM 内存配置（当前 12GB）
+2. 使用 Maven 本地仓库缓存
+3. 考虑使用更快的构建节点
+
+### 8.5 构建资源需求
+
+**Native 构建 Pod**:
+- CPU: 4 cores (request), 8 cores (limit)
+- 内存: 8GB (request), 16GB (limit)
+- 存储: 10GB PVC（临时，构建完成后可删除）
+
+**建议**:
+- 确保节点有足够可用资源
+- 避免同时运行多个 Native 构建
+
+### 8.6 镜像仓库配置
+
+**推送端口**: 5001 (docker-hosted)
+- 地址: `nexus-nexus-repository-manager.platform.svc.cluster.local:5001`
+- 用途: Kaniko 推送镜像
+
+**拉取端口**: 5000 (docker-group，聚合)
+- 地址: `nexus-nexus-repository-manager.platform.svc.cluster.local:5000`
+- 用途: Kubernetes 拉取镜像
+- 包含: docker-hosted + docker-proxy (Docker Hub)
+
+**注意**: 
+- 推送和拉取使用不同端口
+- docker-group 会自动聚合 docker-hosted 的镜像
+- 如果拉取失败，检查 docker-group 配置
+

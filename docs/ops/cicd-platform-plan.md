@@ -18,7 +18,10 @@
 - ✅ Gitea：`https://gitea.local/`（Ingress + 本地 CA TLS，数据库复用 middleware PostgreSQL）
 - ✅ Kuboard v3：`https://kuboard.local/`（Ingress + 本地 CA TLS）
 - ✅ 中间件层：PostgreSQL + Redis（`middleware` namespace）
-- ✅ Tekton Pipelines：已安装并运行（v1.7.0）
+- ✅ Tekton Pipelines：已安装并运行（v1.7.0），并已打通最小 CI（clone + Maven build 走 Nexus）
+- ✅ 你已确认：OCI 镜像仓库也使用 Nexus（docker-hosted/docker-group）
+- ✅ 已启用 Nexus Docker Registry 端口：docker-group=5000（pull）、docker-hosted=5001（push）
+- ✅ Tekton 已可构建并推送 OCI 镜像到 Nexus（Quarkus + Jib，无 Docker）
 - ✅ GitOps 仓库：已在 Gitea 创建并初始化
   - `platform-infra`
   - `apps-deploy`
