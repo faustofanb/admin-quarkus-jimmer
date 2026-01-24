@@ -20,6 +20,11 @@ quarkus:
             - --initialize-at-run-time=org.h2.store.fs.niomem.FileNioMemData
             - --initialize-at-run-time=io.github.faustofan.admin.shared.async.executor.VirtualThreadExecutorFactory
 
+    # Jib Container Image Build
+    jib:
+        base-jvm-image: eclipse-temurin:21-jre
+        base-registry-insecure: false
+
     # Datasource - PostgreSQL
     datasource:
         db-kind: postgresql
