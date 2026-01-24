@@ -54,7 +54,7 @@ spec:
     - --insecure
     - --skip-tls-verify
     - --verbosity=info
-    - --registry-mirror=nexus.default.svc.cluster.local:5000
+    - --registry-mirror=nexus.platform.svc.cluster.local:5000
     - --custom-platform=linux/amd64
     command:
     - /kaniko/executor

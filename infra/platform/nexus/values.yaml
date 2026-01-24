@@ -1,4 +1,16 @@
 fullnameOverride: nexus
+
+nexus:
+  docker:
+    enabled: true
+    registries:
+      - host: nexus.platform.svc.cluster.local
+        port: 5000
+      - host: nexus.platform.svc.cluster.local
+        port: 5001
+
+service:
+  type: ClusterIP
 persistence:
   enabled: true
   size: 20Gi

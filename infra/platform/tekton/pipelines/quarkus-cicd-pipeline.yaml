@@ -45,7 +45,7 @@ spec:
     - fetch-source
     taskRef:
       kind: Task
-      name: quarkus-maven-jib-push
+      name: quarkus-maven-kaniko-push
     workspaces:
     - name: source
       workspace: shared-data

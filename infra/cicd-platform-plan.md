@@ -28,6 +28,13 @@
 
 > 说明：凭据/密码不写入仓库，请参考 `docs/ops/README.md` 的“凭据获取方式”。
 
+## 当前修复进度（2026-01-24）
+- ✅ 已将 Tekton 侧 Nexus 访问域名统一回 **nexus.platform.svc.cluster.local**（maven settings / kaniko registry mirror / jib base image）。
+- ✅ 已在 Nexus Helm values 中启用 Docker registries 端口 **5000/5001**（用于生成对应 Service 与 containerPort）。
+- ⚠️ 发现平台现状异常：**platform 命名空间没有 Nexus Deployment/Pod**，仅残留 Helm release 记录（sh.helm.release.v1.nexus.v1）；此前一度在 default 命名空间出现 Nexus（已清理）。
+- ❌ 当前阻塞：Nexus 未在 platform 运行，导致 **nexus-init-job** 一直等待就绪；同时历史 **nexus-init-docker-job** 报错 `secret "nexus-admin-password" not found`。
+- ▶ 下一步：严格走 GitOps（Argo CD）重新同步 platform-components，确保 Helm chart 在 platform 渲染并创建 Nexus（Deployment/Service/PVC）；补齐初始化所需 Secret/凭据来源（Kustomize/SecretGenerator/SOPS），再重跑 init job，最后验证 Tekton 推送镜像到 Nexus。
+
 ## 1. 当前代码库状态分析（你现有工程）
 ### 1.1 应用技术栈
 - Maven + Java 21；Quarkus 3.30.5；Jimmer；数据库 PostgreSQL；Redis；Flyway 迁移。

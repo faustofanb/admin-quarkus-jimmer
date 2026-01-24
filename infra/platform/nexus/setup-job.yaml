@@ -96,3 +96,24 @@ data:
     } catch (Exception e) {
         log.error("Error creating repos: " + e)
     }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus
+  namespace: platform
+spec:
+  clusterIP: None
+  selector:
+    app: nexus
+  ports:
+  - name: http
+    port: 8081
+    targetPort: 8081
+  - name: docker-group
+    port: 5000
+    targetPort: 5000
+  - name: docker-hosted
+    port: 5001
+    targetPort: 5001

@@ -1,0 +1,75 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: quarkus-maven-kaniko-push
+  namespace: tekton-pipelines
+spec:
+  description: Build Quarkus with Maven and push image via Kaniko (no Docker daemon)
+  params:
+  - default: clean package -DskipTests
+    name: GOALS
+    type: string
+  - description: Image reference without tag (registry/repo)
+    name: IMAGE
+    type: string
+  - default: latest
+    name: IMAGE_TAG
+    type: string
+  - description: Dockerfile path relative to source
+    default: src/main/docker/Dockerfile.jvm
+    name: DOCKERFILE
+    type: string
+  - description: Build context path
+    default: .
+    name: BUILD_CONTEXT
+    type: string
+  steps:
+  - name: maven-build
+    computeResources: {}
+    env:
+    - name: MAVEN_OPTS
+      value: -Dmaven.repo.local=$(workspaces.source.path)/.m2
+    image: maven:3.9-eclipse-temurin-21
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+      
+      echo "Building Quarkus application..."
+      mvn -s $(workspaces.maven-settings.path)/settings.xml \
+        $(params.GOALS) \
+        -Dquarkus.container-image.build=false \
+        -Dquarkus.container-image.push=false
+      
+      echo "✅ Maven build completed"
+    workingDir: $(workspaces.source.path)/source
+  
+  - name: kaniko-build-push
+    computeResources: {}
+    image: gcr.io/kaniko-project/executor:latest
+    args:
+    - --dockerfile=$(workspaces.source.path)/source/$(params.DOCKERFILE)
+    - --context=$(workspaces.source.path)/source/$(params.BUILD_CONTEXT)
+    - --destination=$(params.IMAGE):$(params.IMAGE_TAG)
+    - --insecure
+    - --skip-tls-verify
+    - --verbosity=info
+    - --registry-mirror=nexus.platform.svc.cluster.local:5000
+    - --custom-platform=linux/amd64
+    env:
+    - name: DOCKER_CONFIG
+      value: /kaniko/.docker
+    volumeMounts:
+    - mountPath: /kaniko/.docker
+      name: docker-config
+  
+  volumes:
+  - name: docker-config
+    secret:
+      items:
+      - key: .dockerconfigjson
+        path: config.json
+      secretName: nexus-registry-secret
+  
+  workspaces:
+  - name: source
+  - name: maven-settings
