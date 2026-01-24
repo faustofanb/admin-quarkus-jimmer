@@ -1,16 +1,50 @@
-fullnameOverride: nexus
+fullnameOverride: nexus-nexus-repository-manager
 
-nexus:
-  docker:
-    enabled: true
-    registries:
-      - host: nexus.platform.svc.cluster.local
-        port: 5000
-      - host: nexus.platform.svc.cluster.local
-        port: 5001
+replicaCount: 1
+
+image:
+  repository: sonatype/nexus3
+  tag: "3.64.0"
+  pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
+  port: 8081
+  targetPort: 8081
+  annotations: {}
+  labels: {}
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: local-ca-issuer
+  hosts:
+    - host: nexus.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: nexus-tls
+      hosts:
+        - nexus.local
+
 persistence:
   enabled: true
-  size: 20Gi
+  storageClass: local-path
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  volumeName: nexus-nexus-repository-manager-data
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+# Note: Docker registry ports (5000/5001) are typically exposed via separate Service
+# For now, they are accessible via Ingress or direct port-forward during init
+nexusPropertiesOverride:
+  - nexus.scripts.allowCreation=true

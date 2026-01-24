@@ -102,23 +102,52 @@ bootstrap() {
   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
 }
 
+install_nexus() {
+   log "Deploying Nexus OSS (Helm)..."
+   
+   kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f -
+   
+   helm upgrade --install nexus sonatype/nexus-repository-manager \
+     -n platform \
+     --version "$NEXUS_CHART_VERSION" \
+     -f "$ROOT_DIR/platform/nexus/values.yaml" \
+     --wait \
+     --timeout 5m
+   
+   log "Waiting for Nexus Pod to be ready..."
+   kubectl -n platform wait --for=condition=Ready pod -l app.kubernetes.io/name=nexus-repository-manager --timeout=300s || true
+   
+   # Extract and save admin password
+   local nexus_pass=$(kubectl exec -n platform deployment/nexus-nexus-repository-manager -- cat /nexus-data/admin.password 2>/dev/null || echo "")
+   if [ -n "$nexus_pass" ]; then
+     log "Creating Secret for Nexus admin password..."
+     kubectl create secret generic nexus-admin-password \
+       -n platform \
+       --from-literal=password="$nexus_pass" \
+       --dry-run=client -o yaml | kubectl apply -f -
+     log "Nexus admin password saved to Secret: platform/nexus-admin-password"
+   fi
+   
+   log "Nexus deployment finished."
+}
+
 install() {
-  log "Starting installation (Argo CD Handoff)..."
-  
-  # Ensure we are bootstrapped first? (Users responsibility or Idempotent checks)
-  
-  log "Applying Argo CD 'App of Apps'..."
-  # 1. Platform Components
-  kubectl apply -f "$ROOT_DIR/bootstrap/argo-cd/applications/platform.yaml"
-  
-  # 2. Business Apps
-  kubectl apply -f "$ROOT_DIR/bootstrap/argo-cd/applications/apps.yaml"
-  
-  log "Waiting for Argo CD to pick up changes..."
-  sleep 5
-  kubectl get application -n argocd
-  
-  log "Installation triggers submitted. Check Argo CD UI for sync status."
+   log "Starting installation (Argo CD Handoff)..."
+   
+   # Ensure we are bootstrapped first? (Users responsibility or Idempotent checks)
+   
+   log "Applying Argo CD 'App of Apps'..."
+   # 1. Platform Components
+   kubectl apply -f "$ROOT_DIR/bootstrap/argo-cd/applications/platform.yaml"
+   
+   # 2. Business Apps
+   kubectl apply -f "$ROOT_DIR/bootstrap/argo-cd/applications/apps.yaml"
+   
+   log "Waiting for Argo CD to pick up changes..."
+   sleep 5
+   kubectl get application -n argocd
+   
+   log "Installation triggers submitted. Check Argo CD UI for sync status."
 }
 
 verify() {
@@ -163,28 +192,31 @@ verify() {
 }
 
 case "${1:-}" in
-  hosts)
-    ensure_hosts_mapping
-    getent hosts "${HOSTS_DOMAINS[@]}" || true
-    ;;
-  bootstrap)
-    ensure_hosts_mapping
-    bootstrap
-    ;;
-  install)
-    install
-    ;;
-  verify)
-    verify
-    ;;
-  all)
-    ensure_hosts_mapping
-    bootstrap
-    install
-    verify
-    ;;
-  *)
-    echo "Usage: $0 {hosts|bootstrap|install|verify|all}" >&2
-    exit 2
-    ;;
+   hosts)
+     ensure_hosts_mapping
+     getent hosts "${HOSTS_DOMAINS[@]}" || true
+     ;;
+   bootstrap)
+     ensure_hosts_mapping
+     bootstrap
+     ;;
+   install-nexus)
+     install_nexus
+     ;;
+   install)
+     install
+     ;;
+   verify)
+     verify
+     ;;
+   all)
+     ensure_hosts_mapping
+     bootstrap
+     install
+     verify
+     ;;
+   *)
+     echo "Usage: $0 {hosts|bootstrap|install-nexus|install|verify|all}" >&2
+     exit 2
+     ;;
 esac

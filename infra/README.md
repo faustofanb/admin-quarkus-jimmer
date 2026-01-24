@@ -52,21 +52,33 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 
 - **URL**: https://nexus.local/
 - **Username**: `admin`
-- **Password**: `318a37cc-efed-4101-b9a4-141671dd6b93`
+- **Password**: `313e0e1e-9216-4510-bed0-aac8aac3918d`
+- **Deployment**: Helm (nexus-repository-manager 64.2.0)
+- **Namespace**: platform
+- **Pod 标签**: `app.kubernetes.io/name=nexus-repository-manager`
 
 获取初始密码：
 ```bash
-kubectl -n platform exec -it deployment/nexus -- cat /nexus-data/admin.password
+# 方式 1: 从 Secret 获取
+kubectl get secret -n platform nexus-admin-password -o jsonpath='{.data.password}' | base64 -d
+
+# 方式 2: 从 Pod 获取
+kubectl exec -n platform deployment/nexus-nexus-repository-manager -- cat /nexus-data/admin.password
 ```
 
-**Nexus Docker Registry**:
+已配置的仓库：
+- **Maven**: maven-releases, maven-snapshots, maven-central (proxy), maven-public (group)
+- **OCI**: docker-hosted, docker-proxy (Docker Hub)
+- **其他**: npm, rubygems, pypi, nuget, bower 等
+
+**Nexus Docker Registry** (待配置端口映射):
 - Pull (docker-group): `http://nexus.local:5000/`
 - Push (docker-hosted): `http://nexus.local:5001/`
 - Username/Password: 同 Nexus UI 凭据
 
 > OCI 镜像仓库策略：
 > - HTTP registry 注意：Jib 默认不在 HTTP 连接上发送凭据，需要额外开启 `-DsendCredentialsOverHttp=true`（已在 Tekton Task 中配置）。
-> - Pod 内访问应使用 k8s Service 域名：`nexus.platform.svc.cluster.local:5000/5001`
+> - Pod 内访问应使用 k8s Service 域名：`nexus-nexus-repository-manager.platform.svc.cluster.local:8081`
 
 ### 2.3 Gitea
 
@@ -342,16 +354,23 @@ kubectl run test-registry --rm -i --image=curlimages/curl -- \
 
 ### 7.3 关键自动化机制
 
-1.  **Nexus 初始化**:
-    - **机制**: K8s Job (`nexus-init-job`) + Groovy 脚本
-    - **触发**: Argo CD 同步 `infra/platform/nexus` 时自动运行
-    - **功能**: 自动创建 Maven (hosted/proxy/group) 和 Docker (hosted/proxy/group) 仓库，无需人工登录 UI 配置。
+1.  **Nexus 部署**:
+    - **部署方式**: Helm (`sonatype/nexus-repository-manager` v64.2.0)
+    - **命令**: 见 `infra/scripts/setup.sh install-nexus` 或 `install-platform` 中的 Nexus 部分
+    - **状态**: ✅ 已正常运行（Pod: Running 1/1）
+    - **待优化**: Docker Registry 端口映射 (5000/5001) 尚未在 Service 中暴露，需更新 Helm values
 
-2.  **K3s 镜像加速**:
+2.  **Nexus 初始化**:
+    - **机制**: 首次启动时自动生成初始密码，存储在 `/nexus-data/admin.password`
+    - **配置**: 支持通过 Helm values 注入默认凭据（当前使用自动生成）
+    - **功能**: 已预配置 Maven、Docker 等标准仓库；可选择通过 Groovy API 进行高级配置
+    - **后续计划**: 创建 K8s Job 通过 REST API 自动创建 Docker 仓库和配置 Maven mirror
+
+3.  **K3s 镜像加速**:
     - **配置文件**: `infra/bootstrap/k3s-registries.yaml`
     - **效果**: 强制 K3s 节点拉取 `docker.io`, `quay.io`, `gcr.io` 等镜像时，代理到 `nexus.local:5000`。
 
-3.  **Maven 统一配置**:
+4.  **Maven 统一配置**:
     - **配置文件**: `infra/platform/tekton/config/maven-settings.yaml`
     - **效果**: Tekton Pipeline 全局挂载此 ConfigMap，强制所有构建流量走 Nexus `maven-public` 组。
 
