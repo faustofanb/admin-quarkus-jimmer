@@ -14,7 +14,7 @@ commonLabels:
 
 images:
 - name: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/admin-server
-  newTag: 0f1d1573a936e2137e93d334774daea9289150b9
+  newTag: native-final-1769264100
 
 patches:
 - patch: |-
