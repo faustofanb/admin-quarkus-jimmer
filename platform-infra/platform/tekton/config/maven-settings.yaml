@@ -10,7 +10,7 @@ data:
         <mirror>
           <id>nexus</id>
           <mirrorOf>*</mirrorOf>
-          <url>http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/repository/maven-group/</url>
+          <url>http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/repository/maven-public/</url>
         </mirror>
       </mirrors>
       <servers>
