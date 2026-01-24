@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: admin-server
+  annotations:
+    cert-manager.io/cluster-issuer: local-ca-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - admin-server.local
+    secretName: admin-server-tls
+  rules:
+  - host: admin-server.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-server
+            port:
+              number: 8080

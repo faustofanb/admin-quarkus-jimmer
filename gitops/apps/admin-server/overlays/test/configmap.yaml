@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-server-config
+data:
+  DATABASE_HOST: postgresql.middleware.svc.cluster.local
+  DATABASE_PORT: "5432"
+  POSTGRES_DB: platform
+  QUARKUS_REDIS_HOSTS: redis://redis.middleware.svc.cluster.local:6379
+  # 开发功能开关
+  QUARKUS_SWAGGER_UI_ALWAYS_INCLUDE: "true"
+  QUARKUS_SWAGGER_UI_ENABLE: "true"
+  QUARKUS_DEV_UI_ENABLE: "true"
+  QUARKUS_HTTP_CORS_ORIGINS: "*"
