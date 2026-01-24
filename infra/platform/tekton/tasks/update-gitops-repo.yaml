@@ -5,10 +5,6 @@ metadata:
   namespace: tekton-pipelines
 spec:
   params:
-  - name: gitops-repo-url
-    type: string
-  - name: image-name
-    type: string
   - name: image-tag
     type: string
   - name: overlay-path
@@ -32,41 +28,50 @@ spec:
           key: token
           name: gitea-credentials
     image: alpine/git:latest
-    name: clone-and-update
+    name: update-yaml
     script: |
       #!/bin/sh
       set -e
+      
+      # Setup Git
       git config --global user.name "$(params.git-username)"
       git config --global user.email "$(params.git-email)"
+      git config --global --add safe.directory $(workspaces.source.path)
 
-      REPO_URL="http://${GITEA_USERNAME}:${GITEA_TOKEN}@gitea.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git"
+      # Navigate to source
+      cd $(workspaces.source.path)
+      
+      # Ensure we are on the main branch and up to date
+      # Use token for auth for push permissions
+      git remote set-url origin http://${GITEA_USERNAME}:${GITEA_TOKEN}@gitea.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
+      git fetch origin main
+      git checkout main || git checkout -b main origin/main
+      git pull origin main
 
-      echo "Cloning GitOps repository..."
-      git clone $REPO_URL repo
-      cd repo
-
-      echo "Navigating to: $(params.overlay-path)"
+      echo "Navigating to overlay: $(params.overlay-path)"
+      # Monorepo: path is relative to root, e.g., gitops/apps/admin-server/overlays/test
       cd $(params.overlay-path)
 
       if [ ! -f kustomization.yaml ]; then
-        echo "ERROR: kustomization.yaml not found!"
+        echo "ERROR: kustomization.yaml not found at $(pwd)"
+        ls -la
         exit 1
       fi
 
       echo "Updating image tag to $(params.image-tag)..."
-      sed -i "s|newTag:.*|newTag: $(params.image-tag)|g" kustomization.yaml
+      sed -i "s|newTag:.*|newTag: \"$(params.image-tag)\"|g" kustomization.yaml
 
-      echo "Updated kustomization.yaml:"
-      cat kustomization.yaml
+      echo "Diff:"
+      git diff kustomization.yaml
 
       git add kustomization.yaml
-      if git commit -m "chore: update image to $(params.image-tag)"; then
-        echo "Pushing changes..."
+      if git commit -m "chore(gitops): update image tag to $(params.image-tag)"; then
+        # Push with credentials
         git push origin main
         echo "✅ GitOps repository updated"
       else
-        echo "ℹ️  No changes"
+        echo "ℹ️  No changes to commit"
       fi
-    workingDir: $(workspaces.gitops-source.path)
+    workingDir: $(workspaces.source.path)
   workspaces:
-  - name: gitops-source
+  - name: source
