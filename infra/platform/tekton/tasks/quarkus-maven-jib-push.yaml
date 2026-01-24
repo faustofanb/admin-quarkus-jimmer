@@ -1,0 +1,60 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: quarkus-maven-jib-push
+  namespace: tekton-pipelines
+spec:
+  description: Build Quarkus with Maven and push image via Jib to Nexus (no Docker)
+  params:
+  - default: clean package -DskipTests
+    name: GOALS
+    type: string
+  - description: Image reference without tag (registry/repo)
+    name: IMAGE
+    type: string
+  - default: latest
+    name: IMAGE_TAG
+    type: string
+  - default: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/eclipse-temurin:21-jre
+    name: BASE_IMAGE
+    type: string
+  steps:
+  - computeResources: {}
+    env:
+    - name: MAVEN_OPTS
+      value: -Dmaven.repo.local=$(workspaces.source.path)/.m2
+    - name: NEXUS_USER
+      valueFrom:
+        secretKeyRef:
+          key: username
+          name: nexus-credentials
+    - name: NEXUS_PASS
+      valueFrom:
+        secretKeyRef:
+          key: password
+          name: nexus-credentials
+    image: maven:3.9-eclipse-temurin-21
+    name: mvn-jib
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+
+      IMAGE="$(params.IMAGE):$(params.IMAGE_TAG)"
+      echo "Base image: $(params.BASE_IMAGE)"
+      echo "Pushing image: $IMAGE"
+
+      mvn -s $(workspaces.maven-settings.path)/settings.xml \
+        $(params.GOALS) \
+        -Dquarkus.jib.base-jvm-image="$(params.BASE_IMAGE)" \
+        -Dquarkus.jib.base-registry-insecure=true \
+        -Dquarkus.container-image.build=true \
+        -Dquarkus.container-image.push=true \
+        -Dquarkus.container-image.image="$IMAGE" \
+        -Dquarkus.container-image.username="$NEXUS_USER" \
+        -Dquarkus.container-image.password="$NEXUS_PASS" \
+        -Dquarkus.container-image.insecure=true \
+        -DsendCredentialsOverHttp=true
+    workingDir: $(workspaces.source.path)/source
+  workspaces:
+  - name: source
+  - name: maven-settings

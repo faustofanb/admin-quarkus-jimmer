@@ -1,0 +1,98 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nexus-init-job
+  namespace: platform
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+      - name: nexus-script-runner
+        image: curlimages/curl:latest
+        env:
+        - name: NEXUS_USER
+          valueFrom:
+            secretKeyRef:
+              name: nexus-credentials # Expected to exist
+              key: username
+        - name: NEXUS_PASS
+          valueFrom:
+            secretKeyRef:
+              name: nexus-credentials
+              key: password
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Waiting for Nexus to be ready..."
+          until curl -s -f -u $NEXUS_USER:$NEXUS_PASS http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/status; do
+            echo "Nexus not ready..."
+            sleep 10
+          done
+          
+          echo "Uploading script..."
+          curl -v -u $NEXUS_USER:$NEXUS_PASS -X POST -H "Content-Type: application/json" \
+            -d "{\"name\":\"init_repos\",\"type\":\"groovy\",\"content\": \"$(cat /scripts/init_repos.groovy | sed 's/\"/\\\"/g' | tr '\n' '\\n')\"}" \
+            http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/script || true # Ignore if exists
+          
+          echo "Executing script..."
+          curl -v -u $NEXUS_USER:$NEXUS_PASS -X POST -H "Content-Type: text/plain" \
+            http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/script/init_repos/run
+        volumeMounts:
+        - name: scripts-volume
+          mountPath: /scripts
+      volumes:
+      - name: scripts-volume
+        configMap:
+          name: nexus-init-scripts
+      restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-init-scripts
+  namespace: platform
+data:
+  init_repos.groovy: |
+    import org.sonatype.nexus.repository.config.Configuration
+    import org.sonatype.nexus.repository.storage.WritePolicy
+    
+    // ... (content of init_repos.groovy loaded via kustomize or embedded here for simplicity in this artifact)
+    // For this implementation, I will rely on Kustomize configMapGenerator to fill this in real usage, 
+    // but here I stub it to avoid giant YAML. 
+    // ACTUALLY, sticking to ONE file for now to be safe.
+    // Repeating the groovy content here for the ConfigMap data.
+    
+    import org.sonatype.nexus.repository.config.Configuration
+    import org.sonatype.nexus.repository.storage.WritePolicy
+
+    try {
+        // Maven
+        if (repository.getRepositoryManager().get('maven-hosted') == null) {
+            repository.createMavenHosted('maven-hosted', 'default', true, org.sonatype.nexus.repository.maven.VersionPolicy.RELEASE, WritePolicy.ALLOW_ONCE)
+        }
+        if (repository.getRepositoryManager().get('maven-proxy') == null) {
+            repository.createMavenProxy('maven-proxy', 'https://repo1.maven.org/maven2/', 'default', true, org.sonatype.nexus.repository.maven.LayoutPolicy.STRICT, WritePolicy.ALLOW_ONCE)
+        }
+        if (repository.getRepositoryManager().get('maven-group') == null) {
+            repository.createMavenGroup('maven-group', ['maven-hosted', 'maven-proxy'], 'default')
+        }
+
+        // Docker
+        // Port 5001 for Hosted (Push)
+        if (repository.getRepositoryManager().get('docker-hosted') == null) {
+             conf = new Configuration(repositoryName: 'docker-hosted', recipeName: 'docker-hosted', online: true, attributes: [docker: [v1Enabled: false, forceBasicAuth: true, httpPort: 5001]])
+             repository.getRepositoryManager().create(conf)
+        }
+
+        // Port 5000 for Group (Pull)
+        if (repository.getRepositoryManager().get('docker-group') == null) {
+             conf = new Configuration(repositoryName: 'docker-group', recipeName: 'docker-group', online: true, attributes: [docker: [v1Enabled: false, forceBasicAuth: true, httpPort: 5000], group: [memberNames: ['docker-hosted']]]) // TODO: Add proxy
+             repository.getRepositoryManager().create(conf)
+        }
+        
+    } catch (Exception e) {
+        log.error("Error creating repos: " + e)
+    }

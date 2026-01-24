@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-components
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git # TODO: Switch to internal Gitea URL when GitOps is ready
+    targetRevision: main
+    path: infra/platform
+    directory:
+      recurse: true
+      exclude: 'tekton' # Tekton is managed separately or we need to be careful with structure
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

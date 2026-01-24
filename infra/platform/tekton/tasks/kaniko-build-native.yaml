@@ -1,0 +1,79 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: kaniko-build-native
+  namespace: tekton-pipelines
+spec:
+  params:
+  - description: Name of the image to build
+    name: IMAGE
+    type: string
+  - default: latest
+    description: Tag of the image to build
+    name: TAG
+    type: string
+  steps:
+  - computeResources: {}
+    image: busybox
+    name: create-dockerfile
+    script: |
+      #!/bin/sh
+      set -e
+
+      # 找到 native 二进制
+      BINARY=$(find source/target -name '*-runner' -type f | head -1)
+      BINARY_NAME=$(basename $BINARY)
+
+      echo "Found binary: $BINARY"
+
+      # 创建 Dockerfile
+      cat > Dockerfile <<DOCKERFILE_EOF
+      FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10
+
+      WORKDIR /work/
+
+      # 复制 native 二进制
+      COPY source/target/$BINARY_NAME /work/application
+
+      # 设置可执行权限
+      RUN chmod 775 /work/application
+
+      EXPOSE 8080
+      USER 1001
+
+      CMD ["/work/application", "-Dquarkus.http.host=0.0.0.0"]
+      DOCKERFILE_EOF
+
+      echo "=== Dockerfile created ==="
+      cat Dockerfile
+    workingDir: $(workspaces.source.path)
+  - args:
+    - --dockerfile=Dockerfile
+    - --context=.
+    - --destination=$(params.IMAGE):$(params.TAG)
+    - --insecure
+    - --skip-tls-verify
+    - --verbosity=info
+    - --registry-mirror=nexus-nexus-repository-manager.platform.svc.cluster.local:5000
+    - --custom-platform=linux/amd64
+    command:
+    - /kaniko/executor
+    computeResources: {}
+    env:
+    - name: DOCKER_CONFIG
+      value: /kaniko/.docker
+    image: gcr.io/kaniko-project/executor:latest
+    name: build-and-push
+    volumeMounts:
+    - mountPath: /kaniko/.docker
+      name: docker-config
+    workingDir: $(workspaces.source.path)
+  volumes:
+  - name: docker-config
+    secret:
+      items:
+      - key: .dockerconfigjson
+        path: config.json
+      secretName: nexus-registry-secret
+  workspaces:
+  - name: source

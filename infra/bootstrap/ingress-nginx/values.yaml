@@ -1,0 +1,8 @@
+controller:
+  service:
+    type: LoadBalancer
+  allowSnippetAnnotations: false
+
+tcp:
+  5000: "platform/nexus-nexus-repository-manager:5000"
+  5001: "platform/nexus-nexus-repository-manager:5001"
