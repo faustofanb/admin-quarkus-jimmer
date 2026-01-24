@@ -188,11 +188,11 @@ spec:
     name: quarkus-native-cicd-pipeline
   params:
   - name: git-url
-    value: http://gitea.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
+    value: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
   - name: git-revision
     value: main
   - name: image-name
-    value: nexus.platform.svc.cluster.local:5001/admin-server
+    value: nexus.default.svc.cluster.local:5001/admin-server
   - name: image-tag
     value: native-v1.0.0-$(date +%Y%m%d)
   - name: overlay-path

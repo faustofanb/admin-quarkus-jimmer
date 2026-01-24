@@ -43,7 +43,7 @@ spec:
       
       # Ensure we are on the main branch and up to date
       # Use token for auth for push permissions
-      git remote set-url origin http://${GITEA_USERNAME}:${GITEA_TOKEN}@gitea.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
+      git remote set-url origin http://${GITEA_USERNAME}:${GITEA_TOKEN}@gitea-http.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
       git fetch origin main
       git checkout main || git checkout -b main origin/main
       git pull origin main

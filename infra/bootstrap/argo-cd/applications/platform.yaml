@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://gitea.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git # TODO: Switch to internal Gitea URL when GitOps is ready
+    repoURL: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/admin-quarkus-jimmer.git
     targetRevision: main
     path: infra/platform
     directory:

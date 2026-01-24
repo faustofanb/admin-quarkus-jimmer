@@ -52,8 +52,6 @@ spec:
       workspace: shared-data
     - name: maven-settings
       workspace: maven-settings
-    - name: maven-local-repo
-      workspace: maven-local-repo
   - name: build-and-push-image
     params:
     - name: IMAGE

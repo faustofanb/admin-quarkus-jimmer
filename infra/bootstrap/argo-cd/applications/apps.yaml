@@ -19,7 +19,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: http://gitea.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git
+        repoURL: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git
         targetRevision: main
         path: '{{path}}'
       destination:

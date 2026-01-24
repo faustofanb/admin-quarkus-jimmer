@@ -1,7 +1,7 @@
+fullnameOverride: gitea
 gitea:
   admin:
     email: admin@gitea.local
-fullnameOverride: gitea
     password: Admin@123
     username: gitea_admin
   config:

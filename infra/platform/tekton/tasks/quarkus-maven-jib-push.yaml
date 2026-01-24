@@ -15,7 +15,7 @@ spec:
   - default: latest
     name: IMAGE_TAG
     type: string
-  - default: nexus.platform.svc.cluster.local:5000/eclipse-temurin:21-jre
+  - default: nexus.default.svc.cluster.local:5000/eclipse-temurin:21-jre
     name: BASE_IMAGE
     type: string
   steps:
