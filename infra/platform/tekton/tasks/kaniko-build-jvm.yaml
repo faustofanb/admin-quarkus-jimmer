@@ -27,7 +27,7 @@ spec:
   - args:
     - --dockerfile=src/main/docker/Dockerfile.jvm
     - --context=.
-    - --destination=registry.docker-registry.svc.cluster.local:5000/admin-server:$(params.TAG)
+    - --destination=10.43.193.98:5000/admin-server:$(params.TAG)
     - --insecure
     computeResources: {}
     image: gcr.io/kaniko-project/executor:latest
