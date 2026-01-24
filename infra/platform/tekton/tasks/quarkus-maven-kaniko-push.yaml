@@ -4,7 +4,7 @@ metadata:
   name: quarkus-maven-kaniko-push
   namespace: tekton-pipelines
 spec:
-  description: Build Quarkus with Maven and push image via Kaniko (no Docker daemon)
+  description: Build Quarkus with Maven and generate image with Kaniko (no push)
   params:
   - default: clean package -DskipTests
     name: GOALS
@@ -42,7 +42,7 @@ spec:
       
       echo "✅ Maven build completed"
     workingDir: $(workspaces.source.path)/source
-  
+
   - name: kaniko-build-push
     computeResources: {}
     image: gcr.io/kaniko-project/executor:latest
@@ -50,26 +50,11 @@ spec:
     - --dockerfile=$(workspaces.source.path)/source/$(params.DOCKERFILE)
     - --context=$(workspaces.source.path)/source/$(params.BUILD_CONTEXT)
     - --destination=$(params.IMAGE):$(params.IMAGE_TAG)
-    - --insecure
-    - --skip-tls-verify
+    - --no-push
+    - --tarPath=$(workspaces.source.path)/image.tar
     - --verbosity=info
-    - --registry-mirror=nexus.platform.svc.cluster.local:5000
     - --custom-platform=linux/amd64
-    env:
-    - name: DOCKER_CONFIG
-      value: /kaniko/.docker
-    volumeMounts:
-    - mountPath: /kaniko/.docker
-      name: docker-config
-  
-  volumes:
-  - name: docker-config
-    secret:
-      items:
-      - key: .dockerconfigjson
-        path: config.json
-      secretName: nexus-registry-secret
-  
+
   workspaces:
   - name: source
   - name: maven-settings

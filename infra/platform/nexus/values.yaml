@@ -44,7 +44,7 @@ resources:
     cpu: 1000m
     memory: 2Gi
 
-# Note: Docker registry ports (5000/5001) are typically exposed via separate Service
-# For now, they are accessible via Ingress or direct port-forward during init
+# Note: Docker registry ports (5000/5001) need to be configured in Nexus
+# and exposed via additional Service resources or NodePort
 nexusPropertiesOverride:
   - nexus.scripts.allowCreation=true
