@@ -1,0 +1,38 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: kaniko-build-jvm
+  namespace: tekton-pipelines
+spec:
+  params:
+  - description: Name of the image to build
+    name: IMAGE
+    type: string
+  - default: latest
+    description: Tag of the image to build
+    name: TAG
+    type: string
+  steps:
+  - computeResources: {}
+    env:
+    - name: MAVEN_OPTS
+      value: -Dmaven.repo.local=$(workspaces.source.path)/.m2
+    image: maven:3.9-eclipse-temurin-21
+    name: build-jar
+    script: |
+      #!/bin/bash
+      mvn -s $(workspaces.maven-settings.path)/settings.xml clean package -DskipTests -Dquarkus.container-image.build=false -Dquarkus.container-image.push=false
+      ls -lh target/admin-server-1.0-SNAPSHOT.jar
+    workingDir: $(workspaces.source.path)/source
+  - args:
+    - --dockerfile=src/main/docker/Dockerfile.jvm
+    - --context=.
+    - --destination=registry.docker-registry.svc.cluster.local:5000/admin-server:$(params.TAG)
+    - --insecure
+    computeResources: {}
+    image: gcr.io/kaniko-project/executor:latest
+    name: build-image
+    workingDir: $(workspaces.source.path)/source
+  workspaces:
+  - name: source
+  - name: maven-settings

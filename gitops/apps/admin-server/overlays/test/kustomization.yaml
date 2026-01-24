@@ -13,8 +13,8 @@ commonLabels:
   environment: test
 
 images:
-- name: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/admin-server
-  newTag: "jvm-kaniko-latest"
+- name: registry.docker-registry.svc.cluster.local:5000/admin-server
+  newTag: jvm-kaniko-latest
 
 patches:
 - patch: |-

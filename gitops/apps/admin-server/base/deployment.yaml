@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: admin-server
-        image: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/admin-server:latest
+        image: registry.docker-registry.svc.cluster.local:5000/admin-server:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
