@@ -5,14 +5,17 @@ metadata:
   namespace: argocd
 spec:
   generators:
-  - git:
-      repoURL: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git
-      revision: main
-      directories:
-      - path: apps/*/overlays/*
+  - list:
+      elements:
+      - appName: admin-server-test
+        path: apps/admin-server/overlays/test
+        destNamespace: quarkus-test
+      - appName: admin-server-pre
+        path: apps/admin-server/overlays/pre
+        destNamespace: quarkus-pre
   template:
     metadata:
-      name: '{{path.basename}}-{{path.basenameNormalized}}' 
+      name: '{{appName}}'
     spec:
       project: default
       source:
@@ -21,7 +24,7 @@ spec:
         path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{path.basename}}' # overlay name as namespace (e.g. test, pre) -> requires convention adjustment or explicit mapping
+        namespace: '{{destNamespace}}'
       syncPolicy:
         automated:
           prune: true
