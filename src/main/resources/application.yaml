@@ -1,6 +1,6 @@
 # ===========================================
 # Admin System Application Configuration
-# CI/CD: Automated deployment via Tekton + Argo CD
+# CI/CD: Automated deployment via Tekton + Argo CD GitOps
 # ===========================================
 quarkus:
     application:
