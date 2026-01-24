@@ -1,0 +1,26 @@
+mirrors:
+  "docker.io":
+    endpoint:
+      - "http://nexus.local:5000"
+  "quay.io":
+    endpoint:
+      - "http://nexus.local:5000"
+  "gcr.io":
+    endpoint:
+      - "http://nexus.local:5000"
+  "ghcr.io":
+    endpoint:
+      - "http://nexus.local:5000"
+  "k8s.gcr.io":
+    endpoint:
+      - "http://nexus.local:5000"
+  "registry.k8s.io":
+    endpoint:
+      - "http://nexus.local:5000"
+configs:
+  "nexus.local:5000":
+    tls:
+      insecure_skip_verify: true 
+  "nexus.local:5001": 
+    tls:
+      insecure_skip_verify: true

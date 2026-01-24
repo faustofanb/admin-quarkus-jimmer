@@ -1,0 +1,75 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: git-clone
+  namespace: tekton-pipelines
+spec:
+  description: Clone a git repository
+  params:
+  - description: Git repository URL
+    name: url
+    type: string
+  - default: main
+    description: Git revision to checkout (branch, tag, sha)
+    name: revision
+    type: string
+  - default: source
+    description: Subdirectory inside the workspace to clone the repo into
+    name: subdirectory
+    type: string
+  - default: "false"
+    description: Delete existing directory before cloning
+    name: deleteExisting
+    type: string
+  steps:
+  - computeResources: {}
+    env:
+    - name: HOME
+      value: /tekton/home
+    - name: GIT_TERMINAL_PROMPT
+      value: "0"
+    - name: GIT_ASKPASS
+      value: /tmp/askpass
+    - name: GIT_USERNAME
+      valueFrom:
+        secretKeyRef:
+          key: username
+          name: git-credentials
+    - name: GIT_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: password
+          name: git-credentials
+    image: gitea/gitea:1.22.3-rootless
+    imagePullPolicy: IfNotPresent
+    name: clone
+    script: |
+      #!/bin/sh
+      set -eu
+      mkdir -p /tekton/home
+      cat > /tmp/askpass <<"EOF"
+      #!/bin/sh
+      case "$1" in
+        *Username*) echo "$GIT_USERNAME";;
+        *Password*) echo "$GIT_PASSWORD";;
+        *) echo "";;
+      esac
+      EOF
+      chmod 700 /tmp/askpass
+
+      cd /workspace/output
+      
+      if [ "$(params.deleteExisting)" = "true" ] && [ -d "$(params.subdirectory)" ]; then
+        echo "Deleting existing directory $(params.subdirectory)..."
+        rm -rf "$(params.subdirectory)"
+      fi
+
+      echo "Cloning $(params.url) into $(params.subdirectory)..."
+      git clone --depth 1 --branch $(params.revision) $(params.url) $(params.subdirectory)
+      cd $(params.subdirectory)
+      echo "=== Repository cloned successfully ==="
+      echo "Git revision: $(git rev-parse HEAD)"
+      ls -la
+  workspaces:
+  - description: The git repo will be cloned onto this workspace
+    name: output

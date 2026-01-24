@@ -1,0 +1,281 @@
+apiVersion: v1
+items:
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"annotations":{},"name":"postgresql","namespace":"middleware"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"postgresql"}},"serviceName":"postgresql","template":{"metadata":{"labels":{"app":"postgresql"}},"spec":{"containers":[{"env":[{"name":"POSTGRES_PASSWORD","valueFrom":{"secretKeyRef":{"key":"postgres-password","name":"postgresql-secret"}}},{"name":"POSTGRES_DB","value":"platform"},{"name":"PGDATA","value":"/var/lib/postgresql/data/pgdata"}],"image":"postgres:16-alpine","name":"postgresql","ports":[{"containerPort":5432}],"resources":{"limits":{"cpu":"1000m","memory":"1Gi"},"requests":{"cpu":"250m","memory":"256Mi"}},"volumeMounts":[{"mountPath":"/var/lib/postgresql/data","name":"data"}]}]}},"volumeClaimTemplates":[{"metadata":{"name":"data"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"10Gi"}}}}]}}
+    creationTimestamp: "2026-01-22T23:14:10Z"
+    generation: 1
+    name: postgresql
+    namespace: middleware
+    resourceVersion: "182541"
+    uid: f069d801-813c-4698-b279-0f0d63c9c271
+  spec:
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+    podManagementPolicy: OrderedReady
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: postgresql
+    serviceName: postgresql
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: postgresql
+      spec:
+        containers:
+        - env:
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: postgres-password
+                name: postgresql-secret
+          - name: POSTGRES_DB
+            value: platform
+          - name: PGDATA
+            value: /var/lib/postgresql/data/pgdata
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          name: postgresql
+          ports:
+          - containerPort: 5432
+            protocol: TCP
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    updateStrategy:
+      rollingUpdate:
+        partition: 0
+      type: RollingUpdate
+    volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+  status:
+    availableReplicas: 1
+    collisionCount: 0
+    currentReplicas: 1
+    currentRevision: postgresql-6dc56ffcfd
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    updateRevision: postgresql-6dc56ffcfd
+    updatedReplicas: 1
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"annotations":{},"name":"redis","namespace":"middleware"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"redis"}},"serviceName":"redis","template":{"metadata":{"labels":{"app":"redis"}},"spec":{"containers":[{"command":["redis-server","/etc/redis/redis.conf"],"env":[{"name":"REDIS_PASSWORD","valueFrom":{"secretKeyRef":{"key":"redis-password","name":"redis-secret"}}}],"image":"redis:7-alpine","name":"redis","ports":[{"containerPort":6379}],"resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}},"volumeMounts":[{"mountPath":"/data","name":"data"},{"mountPath":"/etc/redis","name":"config"}]}],"volumes":[{"configMap":{"name":"redis-config"},"name":"config"}]}},"volumeClaimTemplates":[{"metadata":{"name":"data"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}]}}
+    creationTimestamp: "2026-01-22T23:15:23Z"
+    generation: 1
+    name: redis
+    namespace: middleware
+    resourceVersion: "182564"
+    uid: 00859676-d27d-4cf0-bf56-87aeecd3b0be
+  spec:
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+    podManagementPolicy: OrderedReady
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: redis
+    serviceName: redis
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: redis
+      spec:
+        containers:
+        - command:
+          - redis-server
+          - /etc/redis/redis.conf
+          env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: redis-password
+                name: redis-secret
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          name: redis
+          ports:
+          - containerPort: 6379
+            protocol: TCP
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /data
+            name: data
+          - mountPath: /etc/redis
+            name: config
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            defaultMode: 420
+            name: redis-config
+          name: config
+    updateStrategy:
+      rollingUpdate:
+        partition: 0
+      type: RollingUpdate
+    volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+  status:
+    availableReplicas: 1
+    collisionCount: 0
+    currentReplicas: 1
+    currentRevision: redis-7f7dc55cdf
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    updateRevision: redis-7f7dc55cdf
+    updatedReplicas: 1
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"name":"postgresql","namespace":"middleware"},"spec":{"clusterIP":"None","ports":[{"port":5432,"targetPort":5432}],"selector":{"app":"postgresql"}}}
+    creationTimestamp: "2026-01-22T23:14:10Z"
+    name: postgresql
+    namespace: middleware
+    resourceVersion: "28888"
+    uid: 700ae172-c292-41e8-bdb8-055293a8e942
+  spec:
+    clusterIP: None
+    clusterIPs:
+    - None
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - port: 5432
+      protocol: TCP
+      targetPort: 5432
+    selector:
+      app: postgresql
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"name":"redis","namespace":"middleware"},"spec":{"clusterIP":"None","ports":[{"port":6379,"targetPort":6379}],"selector":{"app":"redis"}}}
+    creationTimestamp: "2026-01-22T23:15:23Z"
+    name: redis
+    namespace: middleware
+    resourceVersion: "28954"
+    uid: 505079bf-5c79-4bf5-83b2-33834f0af727
+  spec:
+    clusterIP: None
+    clusterIPs:
+    - None
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - port: 6379
+      protocol: TCP
+      targetPort: 6379
+    selector:
+      app: redis
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  data:
+    postgres-password: cG9zdGdyZXMxMjM=
+  kind: Secret
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"Secret","metadata":{"annotations":{},"name":"postgresql-secret","namespace":"middleware"},"stringData":{"postgres-password":"postgres123"},"type":"Opaque"}
+    creationTimestamp: "2026-01-22T23:14:10Z"
+    name: postgresql-secret
+    namespace: middleware
+    resourceVersion: "28887"
+    uid: a7f12a65-a25c-42ac-a238-90ea08850e4d
+  type: Opaque
+- apiVersion: v1
+  data:
+    redis-password: cmVkaXMxMjM=
+  kind: Secret
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"Secret","metadata":{"annotations":{},"name":"redis-secret","namespace":"middleware"},"stringData":{"redis-password":"redis123"},"type":"Opaque"}
+    creationTimestamp: "2026-01-22T23:15:23Z"
+    name: redis-secret
+    namespace: middleware
+    resourceVersion: "28952"
+    uid: bd2f7805-01f3-4e21-9f59-fecf30bdc467
+  type: Opaque
+kind: List
+metadata:
+  resourceVersion: ""

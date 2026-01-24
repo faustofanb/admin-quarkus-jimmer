@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: business-apps
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git
+      revision: main
+      directories:
+      - path: apps/*/overlays/*
+  template:
+    metadata:
+      name: '{{path.basename}}-{{path.basenameNormalized}}' 
+    spec:
+      project: default
+      source:
+        repoURL: http://gitea-http.platform.svc.cluster.local:3000/gitea_admin/apps-deploy.git
+        targetRevision: main
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{path.basename}}' # overlay name as namespace (e.g. test, pre) -> requires convention adjustment or explicit mapping
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true

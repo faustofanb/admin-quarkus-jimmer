@@ -1,0 +1,582 @@
+apiVersion: v1
+items:
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"annotations":{},"labels":{"app":"kuboard"},"name":"kuboard","namespace":"kuboard"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"kuboard"}},"serviceName":"kuboard","template":{"metadata":{"labels":{"app":"kuboard"}},"spec":{"containers":[{"env":[{"name":"KUBOARD_ENDPOINT","valueFrom":{"configMapKeyRef":{"key":"KUBOARD_ENDPOINT","name":"kuboard-v3-config"}}},{"name":"KUBOARD_AGENT_SERVER_TCP_PORT","valueFrom":{"configMapKeyRef":{"key":"KUBOARD_AGENT_SERVER_TCP_PORT","name":"kuboard-v3-config"}}}],"image":"eipwork/kuboard:v3","imagePullPolicy":"IfNotPresent","name":"kuboard","ports":[{"containerPort":80,"name":"web"},{"containerPort":10081,"name":"agent-tcp"},{"containerPort":10081,"name":"agent-udp","protocol":"UDP"}],"resources":{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"200m","memory":"512Mi"}},"volumeMounts":[{"mountPath":"/data","name":"data"}]}]}},"volumeClaimTemplates":[{"metadata":{"name":"data"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}]}}
+    creationTimestamp: "2026-01-22T23:29:49Z"
+    generation: 1
+    labels:
+      app: kuboard
+    name: kuboard
+    namespace: kuboard
+    resourceVersion: "159363"
+    uid: 786cb998-f914-45c0-aea3-7f46e64231f9
+  spec:
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+    podManagementPolicy: OrderedReady
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: kuboard
+    serviceName: kuboard
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: kuboard
+      spec:
+        containers:
+        - env:
+          - name: KUBOARD_ENDPOINT
+            valueFrom:
+              configMapKeyRef:
+                key: KUBOARD_ENDPOINT
+                name: kuboard-v3-config
+          - name: KUBOARD_AGENT_SERVER_TCP_PORT
+            valueFrom:
+              configMapKeyRef:
+                key: KUBOARD_AGENT_SERVER_TCP_PORT
+                name: kuboard-v3-config
+          image: eipwork/kuboard:v3
+          imagePullPolicy: IfNotPresent
+          name: kuboard
+          ports:
+          - containerPort: 80
+            name: web
+            protocol: TCP
+          - containerPort: 10081
+            name: agent-tcp
+            protocol: TCP
+          - containerPort: 10081
+            name: agent-udp
+            protocol: UDP
+          resources:
+            limits:
+              cpu: "1"
+              memory: 2Gi
+            requests:
+              cpu: 200m
+              memory: 512Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /data
+            name: data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    updateStrategy:
+      rollingUpdate:
+        partition: 0
+      type: RollingUpdate
+    volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+  status:
+    availableReplicas: 1
+    collisionCount: 0
+    currentReplicas: 1
+    currentRevision: kuboard-667f678c7f
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    updateRevision: kuboard-667f678c7f
+    updatedReplicas: 1
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+      k8s.kuboard.cn/ingress: "false"
+      k8s.kuboard.cn/service: none
+      k8s.kuboard.cn/workload: kuboard-agent-13pnyd5
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{"k8s.kuboard.cn/ingress":"false","k8s.kuboard.cn/service":"none","k8s.kuboard.cn/workload":"kuboard-agent-13pnyd5"},"labels":{"k8s.kuboard.cn/name":"kuboard-agent-13pnyd5"},"name":"kuboard-agent-13pnyd5","namespace":"kuboard"},"spec":{"replicas":1,"selector":{"matchLabels":{"k8s.kuboard.cn/name":"kuboard-agent-13pnyd5"}},"template":{"metadata":{"labels":{"k8s.kuboard.cn/name":"kuboard-agent-13pnyd5"}},"spec":{"affinity":{"nodeAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[{"preference":{"matchExpressions":[{"key":"node-role.kubernetes.io/master","operator":"Exists"}]},"weight":100}]},"podAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[{"podAffinityTerm":{"labelSelector":{"matchLabels":{"k8s.kuboard.cn/name":"kuboard-v3"}},"namespaces":["kuboard"],"topologyKey":"kubernetes.io/hostname"},"weight":100}]}},"containers":[{"env":[{"name":"KUBOARD_ENDPOINT","value":"https://kuboard.local"},{"name":"KUBOARD_AGENT_HOST","value":"kuboard.local"},{"name":"KUBOARD_AGENT_PORT","value":"10081"},{"name":"KUBOARD_AGENT_REMOTE_PORT","value":"35001"},{"name":"KUBOARD_AGENT_PROTOCOL","value":"tcp"},{"name":"KUBOARD_AGENT_PROXY","value":""},{"name":"KUBOARD_K8S_CLUSTER_NAME","value":"k3s"},{"name":"KUBOARD_AGENT_KEY","value":"32b7d6572c6255211b4eec9009e4a816"},{"name":"KUBERNETES_TOKEN_NAME","value":"kuboard-admin"},{"name":"KUBOARD_ANONYMOUS_TOKEN","value":"eEbKXZwpn6n8WIl9IAOR4bh50bqQZ4gq"},{"name":"POD_HOST_NAME","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.name"}}}],"image":"swr.cn-east-2.myhuaweicloud.com/kuboard/kuboard-agent:v3","imagePullPolicy":"Always","name":"kuboard-agent"}],"restartPolicy":"Always","serviceAccountName":"kuboard-admin","tolerations":[{"effect":"NoSchedule","key":"node-role.kubernetes.io/master","operator":"Exists"}]}}}}
+    creationTimestamp: "2026-01-22T23:35:54Z"
+    generation: 2
+    labels:
+      k8s.kuboard.cn/name: kuboard-agent-13pnyd5
+    name: kuboard-agent-13pnyd5
+    namespace: kuboard
+    resourceVersion: "58151"
+    uid: 68cde938-42b4-4b9c-91b8-6b127e4bc9a8
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 0
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s.kuboard.cn/name: kuboard-agent-13pnyd5
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          k8s.kuboard.cn/name: kuboard-agent-13pnyd5
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: node-role.kubernetes.io/master
+                  operator: Exists
+              weight: 100
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    k8s.kuboard.cn/name: kuboard-v3
+                namespaces:
+                - kuboard
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+        containers:
+        - env:
+          - name: KUBOARD_ENDPOINT
+            value: https://kuboard.local
+          - name: KUBOARD_AGENT_HOST
+            value: kuboard.local
+          - name: KUBOARD_AGENT_PORT
+            value: "10081"
+          - name: KUBOARD_AGENT_REMOTE_PORT
+            value: "35001"
+          - name: KUBOARD_AGENT_PROTOCOL
+            value: tcp
+          - name: KUBOARD_AGENT_PROXY
+          - name: KUBOARD_K8S_CLUSTER_NAME
+            value: k3s
+          - name: KUBOARD_AGENT_KEY
+            value: 32b7d6572c6255211b4eec9009e4a816
+          - name: KUBERNETES_TOKEN_NAME
+            value: kuboard-admin
+          - name: KUBOARD_ANONYMOUS_TOKEN
+            value: eEbKXZwpn6n8WIl9IAOR4bh50bqQZ4gq
+          - name: POD_HOST_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          image: swr.cn-east-2.myhuaweicloud.com/kuboard/kuboard-agent:v3
+          imagePullPolicy: Always
+          name: kuboard-agent
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: kuboard-admin
+        serviceAccountName: kuboard-admin
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+  status:
+    conditions:
+    - lastTransitionTime: "2026-01-22T23:47:45Z"
+      lastUpdateTime: "2026-01-22T23:47:45Z"
+      message: ReplicaSet "kuboard-agent-13pnyd5-787647df6f" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    - lastTransitionTime: "2026-01-23T03:16:56Z"
+      lastUpdateTime: "2026-01-23T03:16:56Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 2
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+      k8s.kuboard.cn/ingress: "false"
+      k8s.kuboard.cn/service: none
+      k8s.kuboard.cn/workload: kuboard-agent-13pnyd5-2
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{"k8s.kuboard.cn/ingress":"false","k8s.kuboard.cn/service":"none","k8s.kuboard.cn/workload":"kuboard-agent-13pnyd5-2"},"labels":{"k8s.kuboard.cn/name":"kuboard-agent-13pnyd5-2"},"name":"kuboard-agent-13pnyd5-2","namespace":"kuboard"},"spec":{"replicas":1,"selector":{"matchLabels":{"k8s.kuboard.cn/name":"kuboard-agent-13pnyd5-2"}},"template":{"metadata":{"labels":{"k8s.kuboard.cn/name":"kuboard-agent-13pnyd5-2"}},"spec":{"affinity":{"nodeAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[{"preference":{"matchExpressions":[{"key":"node-role.kubernetes.io/master","operator":"Exists"}]},"weight":100}]},"podAffinity":{"preferredDuringSchedulingIgnoredDuringExecution":[{"podAffinityTerm":{"labelSelector":{"matchLabels":{"k8s.kuboard.cn/name":"kuboard-v3"}},"namespaces":["kuboard"],"topologyKey":"kubernetes.io/hostname"},"weight":100}]}},"containers":[{"env":[{"name":"KUBOARD_ENDPOINT","value":"https://kuboard.local"},{"name":"KUBOARD_AGENT_HOST","value":"kuboard.local"},{"name":"KUBOARD_AGENT_PORT","value":"10081"},{"name":"KUBOARD_AGENT_REMOTE_PORT","value":"35001"},{"name":"KUBOARD_AGENT_PROTOCOL","value":"tcp"},{"name":"KUBOARD_AGENT_PROXY","value":""},{"name":"KUBOARD_K8S_CLUSTER_NAME","value":"k3s"},{"name":"KUBOARD_AGENT_KEY","value":"32b7d6572c6255211b4eec9009e4a816"},{"name":"KUBERNETES_TOKEN_NAME","value":"kuboard-viewer"},{"name":"KUBOARD_ANONYMOUS_TOKEN","value":"eEbKXZwpn6n8WIl9IAOR4bh50bqQZ4gq"},{"name":"POD_HOST_NAME","valueFrom":{"fieldRef":{"apiVersion":"v1","fieldPath":"metadata.name"}}}],"image":"swr.cn-east-2.myhuaweicloud.com/kuboard/kuboard-agent:v3","imagePullPolicy":"Always","name":"kuboard-agent"}],"restartPolicy":"Always","serviceAccountName":"kuboard-viewer","tolerations":[{"effect":"NoSchedule","key":"node-role.kubernetes.io/master","operator":"Exists"}]}}}}
+    creationTimestamp: "2026-01-22T23:35:54Z"
+    generation: 2
+    labels:
+      k8s.kuboard.cn/name: kuboard-agent-13pnyd5-2
+    name: kuboard-agent-13pnyd5-2
+    namespace: kuboard
+    resourceVersion: "58162"
+    uid: e084324b-3a10-4198-b71b-bee436e55577
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 0
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s.kuboard.cn/name: kuboard-agent-13pnyd5-2
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          k8s.kuboard.cn/name: kuboard-agent-13pnyd5-2
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: node-role.kubernetes.io/master
+                  operator: Exists
+              weight: 100
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    k8s.kuboard.cn/name: kuboard-v3
+                namespaces:
+                - kuboard
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+        containers:
+        - env:
+          - name: KUBOARD_ENDPOINT
+            value: https://kuboard.local
+          - name: KUBOARD_AGENT_HOST
+            value: kuboard.local
+          - name: KUBOARD_AGENT_PORT
+            value: "10081"
+          - name: KUBOARD_AGENT_REMOTE_PORT
+            value: "35001"
+          - name: KUBOARD_AGENT_PROTOCOL
+            value: tcp
+          - name: KUBOARD_AGENT_PROXY
+          - name: KUBOARD_K8S_CLUSTER_NAME
+            value: k3s
+          - name: KUBOARD_AGENT_KEY
+            value: 32b7d6572c6255211b4eec9009e4a816
+          - name: KUBERNETES_TOKEN_NAME
+            value: kuboard-viewer
+          - name: KUBOARD_ANONYMOUS_TOKEN
+            value: eEbKXZwpn6n8WIl9IAOR4bh50bqQZ4gq
+          - name: POD_HOST_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          image: swr.cn-east-2.myhuaweicloud.com/kuboard/kuboard-agent:v3
+          imagePullPolicy: Always
+          name: kuboard-agent
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: kuboard-viewer
+        serviceAccountName: kuboard-viewer
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+  status:
+    conditions:
+    - lastTransitionTime: "2026-01-22T23:47:56Z"
+      lastUpdateTime: "2026-01-22T23:47:56Z"
+      message: ReplicaSet "kuboard-agent-13pnyd5-2-96fb59899" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    - lastTransitionTime: "2026-01-23T03:16:56Z"
+      lastUpdateTime: "2026-01-23T03:16:56Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 2
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+      k8s.kuboard.cn/ingress: "false"
+      k8s.kuboard.cn/service: metrics-scraper
+      k8s.kuboard.cn/workload: metrics-scraper
+    creationTimestamp: "2026-01-23T00:31:54Z"
+    generation: 1
+    labels:
+      k8s.kuboard.cn/name: metrics-scraper
+    name: metrics-scraper
+    namespace: kuboard
+    resourceVersion: "124502"
+    uid: feb04d98-97d6-4a14-9ed4-b0346e110efb
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s.kuboard.cn/name: metrics-scraper
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        annotations:
+          k8s.kuboard.cn/ingress: "false"
+          k8s.kuboard.cn/service: metrics-scraper
+          k8s.kuboard.cn/workload: metrics-scraper
+        creationTimestamp: null
+        labels:
+          k8s.kuboard.cn/name: metrics-scraper
+      spec:
+        containers:
+        - args:
+          - --metric-duration=30m
+          image: swr.cn-east-2.myhuaweicloud.com/kuboard-dependency/metrics-scraper:v1.0.8
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 30
+          name: metrics-scraper
+          ports:
+          - containerPort: 8000
+            protocol: TCP
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 2001
+            runAsUser: 1001
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /tmp
+            name: tmp-volume
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          beta.kubernetes.io/os: linux
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: kuboard-admin
+        serviceAccountName: kuboard-admin
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        volumes:
+        - emptyDir: {}
+          name: tmp-volume
+  status:
+    availableReplicas: 1
+    conditions:
+    - lastTransitionTime: "2026-01-23T00:31:54Z"
+      lastUpdateTime: "2026-01-23T00:31:56Z"
+      message: ReplicaSet "metrics-scraper-57444654f4" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    - lastTransitionTime: "2026-01-23T10:59:20Z"
+      lastUpdateTime: "2026-01-23T10:59:20Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    updatedReplicas: 1
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","kind":"Service","metadata":{"annotations":{},"name":"kuboard","namespace":"kuboard"},"spec":{"ports":[{"name":"web","port":80,"targetPort":80},{"name":"agent-tcp","port":10081,"targetPort":10081},{"name":"agent-udp","port":10081,"protocol":"UDP","targetPort":10081}],"selector":{"app":"kuboard"},"type":"ClusterIP"}}
+    creationTimestamp: "2026-01-22T23:29:49Z"
+    name: kuboard
+    namespace: kuboard
+    resourceVersion: "29664"
+    uid: 34077313-f086-4378-92b0-cedf06739044
+  spec:
+    clusterIP: 10.43.223.115
+    clusterIPs:
+    - 10.43.223.115
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: agent-tcp
+      port: 10081
+      protocol: TCP
+      targetPort: 10081
+    - name: agent-udp
+      port: 10081
+      protocol: UDP
+      targetPort: 10081
+    selector:
+      app: kuboard
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      k8s.kuboard.cn/ingress: "false"
+      k8s.kuboard.cn/service: metrics-scraper
+      k8s.kuboard.cn/workload: metrics-scraper
+    creationTimestamp: "2026-01-23T00:31:54Z"
+    labels:
+      k8s.kuboard.cn/name: metrics-scraper
+    name: metrics-scraper
+    namespace: kuboard
+    resourceVersion: "37335"
+    uid: 2e7ba0d4-6ea7-4692-8c01-568e28513430
+  spec:
+    clusterIP: 10.43.206.135
+    clusterIPs:
+    - 10.43.206.135
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - port: 8000
+      protocol: TCP
+      targetPort: 8000
+    selector:
+      k8s.kuboard.cn/name: metrics-scraper
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    annotations:
+      cert-manager.io/cluster-issuer: local-ca-issuer
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{"cert-manager.io/cluster-issuer":"local-ca-issuer","nginx.ingress.kubernetes.io/backend-protocol":"HTTP","nginx.ingress.kubernetes.io/proxy-body-size":"50m","nginx.ingress.kubernetes.io/proxy-read-timeout":"600","nginx.ingress.kubernetes.io/proxy-send-timeout":"600"},"name":"kuboard","namespace":"kuboard"},"spec":{"ingressClassName":"nginx","rules":[{"host":"kuboard.local","http":{"paths":[{"backend":{"service":{"name":"kuboard","port":{"number":80}}},"path":"/","pathType":"Prefix"}]}}],"tls":[{"hosts":["kuboard.local"],"secretName":"kuboard-tls"}]}}
+      nginx.ingress.kubernetes.io/backend-protocol: HTTP
+      nginx.ingress.kubernetes.io/proxy-body-size: 50m
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      nginx.ingress.kubernetes.io/rewrite-target: /
+    creationTimestamp: "2026-01-22T23:31:41Z"
+    generation: 1
+    name: kuboard
+    namespace: kuboard
+    resourceVersion: "179090"
+    uid: d4243eb1-3a73-41c8-a2ba-7db77d5eaa00
+  spec:
+    ingressClassName: nginx
+    rules:
+    - host: kuboard.local
+      http:
+        paths:
+        - backend:
+            service:
+              name: kuboard
+              port:
+                number: 80
+          path: /
+          pathType: Prefix
+    tls:
+    - hosts:
+      - kuboard.local
+      secretName: kuboard-tls
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 192.168.10.100
+- apiVersion: v1
+  data:
+    ca.crt: |
+      -----BEGIN CERTIFICATE-----
+      MIIBdjCCAR2gAwIBAgIBADAKBggqhkjOPQQDAjAjMSEwHwYDVQQDDBhrM3Mtc2Vy
+      dmVyLWNhQDE3NjkwNzczODYwHhcNMjYwMTIyMTAyMzA2WhcNMzYwMTIwMTAyMzA2
+      WjAjMSEwHwYDVQQDDBhrM3Mtc2VydmVyLWNhQDE3NjkwNzczODYwWTATBgcqhkjO
+      PQIBBggqhkjOPQMBBwNCAAREsAO+u5wQ+jDbrycQMMv5F1eHCRRlaMyjgsyBmxsl
+      d1iHECwmAAP7YwVTmPUIWdWZLadgmvSTNJmAeGqhWXXSo0IwQDAOBgNVHQ8BAf8E
+      BAMCAqQwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUd9fXigVYDM8Rj5pGc2FK
+      9m3JHPwwCgYIKoZIzj0EAwIDRwAwRAIgSTDG9vm2NkGXC87Jr/go4PUxE++b1RqO
+      SK8FLIfDq3QCIECB0dwHVDsLFRZRI0YmZoAVKc78VYcTaMIhNOeSFZRr
+      -----END CERTIFICATE-----
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubernetes.io/description: Contains a CA bundle that can be used to verify the
+        kube-apiserver when using internal endpoints such as the internal service
+        IP or kubernetes.default.svc. No other usage is guaranteed across distributions
+        of Kubernetes clusters.
+    creationTimestamp: "2026-01-22T23:29:49Z"
+    name: kube-root-ca.crt
+    namespace: kuboard
+    resourceVersion: "29656"
+    uid: 1bc3e153-74b6-4ba4-9423-e7f6295ec8be
+- apiVersion: v1
+  data:
+    KUBOARD_AGENT_SERVER_TCP_PORT: "10081"
+    KUBOARD_ENDPOINT: https://kuboard.local
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"v1","data":{"KUBOARD_AGENT_SERVER_TCP_PORT":"10081","KUBOARD_ENDPOINT":"https://kuboard.local"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"kuboard-v3-config","namespace":"kuboard"}}
+    creationTimestamp: "2026-01-22T23:29:49Z"
+    name: kuboard-v3-config
+    namespace: kuboard
+    resourceVersion: "29660"
+    uid: 69c8d914-935a-486d-b07b-2d842e194d03
+kind: List
+metadata:
+  resourceVersion: ""
