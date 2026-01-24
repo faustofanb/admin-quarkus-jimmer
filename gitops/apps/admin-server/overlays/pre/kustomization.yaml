@@ -14,8 +14,8 @@ commonLabels:
 
 # 镜像由 Tekton Pipeline 自动更新（native 版本）
 images:
-- name: nexus-nexus-repository-manager.platform.svc.cluster.local:5000/admin-server
-  newTag: native-v1.0.0-20260124-final
+- name: nginx
+  newTag: latest
 
 patches:
 - patch: |-
