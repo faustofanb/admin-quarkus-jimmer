@@ -40,13 +40,13 @@ spec:
           echo "Executing script..."
           curl -v -u $NEXUS_USER:$NEXUS_PASS -X POST -H "Content-Type: text/plain" \
             http://nexus-nexus-repository-manager.platform.svc.cluster.local:8081/service/rest/v1/script/init_repos/run
+        volumeMounts:
+        - name: scripts-volume
+          mountPath: /scripts
       volumes:
       - name: scripts-volume
         configMap:
           name: nexus-init-scripts
-      volumeMounts:
-      - name: scripts-volume
-        mountPath: /scripts
       restartPolicy: OnFailure
 ---
 apiVersion: v1
