@@ -5,6 +5,7 @@ resources:
   - nexus/setup-job.yaml
   - tekton/pipelines
   - tekton/tasks
+  - tekton/config # added
   - tekton/pvc/maven-repo-pvc.yaml
   - middleware/resources.yaml
   - kuboard/resources.yaml
