@@ -14,7 +14,7 @@ commonLabels:
 
 images:
 - name: 10.43.193.98:5000/admin-server
-  newTag: jvm-kaniko-latest
+  newTag: "jvm-630cd2093ca5215d03fe4d0c4e6c3e4d1850e52c"
 
 patches:
 - patch: |-
