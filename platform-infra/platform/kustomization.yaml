@@ -9,6 +9,7 @@ resources:
   - tekton/pvc/maven-repo-pvc.yaml
   - middleware/resources.yaml
   - kuboard/resources.yaml
+  - apps.yaml # added
 
 helmCharts:
   - name: nexus-repository-manager
