@@ -50,9 +50,9 @@ spec:
   - args:
     - --dockerfile=Dockerfile
     - --context=.
-    - --destination=$(params.IMAGE):$(params.TAG)
-    - --no-push
-    - --tar-path=/workspace/image.tar
+    - --destination=10.43.193.98:5000/$(params.IMAGE):$(params.TAG)
+    - --insecure
+    - --skip-tls-verify
     - --custom-platform=linux/amd64
     command:
     - /kaniko/executor
