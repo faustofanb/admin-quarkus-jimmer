@@ -1,0 +1,53 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: gitea-develop-to-jvm-pipelinerun
+  namespace: tekton-pipelines
+spec:
+  params:
+  - name: git-repo-url
+    description: Git 仓库 URL
+  - name: git-revision
+    description: Git 分支名称
+  - name: git-commit-sha
+    description: Git 提交 SHA
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1
+    kind: PipelineRun
+    metadata:
+      generateName: develop-jvm-
+      namespace: tekton-pipelines
+    spec:
+      pipelineRef:
+        name: quarkus-jvm-kaniko-pipeline
+      params:
+      - name: git-url
+        value: $(tt.params.git-repo-url)
+      - name: git-revision
+        value: develop
+      - name: image-name
+        value: admin-server
+      - name: image-tag
+        value: jvm-$(tt.params.git-commit-sha)
+      taskRunTemplate:
+        serviceAccountName: tekton-bot
+      workspaces:
+      - name: shared-data
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 500Mi
+      - name: maven-settings
+        configMap:
+          name: maven-settings
+      - name: gitops-workspace
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Mi

@@ -1,0 +1,47 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: gitea-push-listener
+  namespace: tekton-pipelines
+spec:
+  serviceAccountName: tekton-triggers-sa
+  triggers:
+  # Trigger 1: develop 分支 → JVM 构建 → Test 环境
+  - name: gitea-develop-jvm-trigger
+    interceptors:
+    - ref:
+        name: cel
+        kind: ClusterInterceptor
+      params:
+      - name: filter
+        value: "body.ref == 'refs/heads/develop'"
+      - name: overlays
+        value:
+        - key: branch_name
+          expression: "body.ref.split('/')[2]"
+        - key: git_commit_sha
+          expression: "body.after"
+    bindings:
+    - ref: gitea-push-binding
+    template:
+      ref: gitea-develop-to-jvm-pipelinerun
+  
+  # Trigger 2: main 分支 → Native 构建 → Pre 环境  
+  - name: gitea-main-native-trigger
+    interceptors:
+    - ref:
+        name: cel
+        kind: ClusterInterceptor
+      params:
+      - name: filter
+        value: "body.ref == 'refs/heads/main'"
+      - name: overlays
+        value:
+        - key: branch_name
+          expression: "body.ref.split('/')[2]"
+        - key: git_commit_sha
+          expression: "body.after"
+    bindings:
+    - ref: gitea-push-binding
+    template:
+      ref: gitea-main-to-native-pipelinerun
