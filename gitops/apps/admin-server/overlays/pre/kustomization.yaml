@@ -15,7 +15,7 @@ commonLabels:
 # 镜像由 Tekton Pipeline 自动更新（native 版本）
 images:
 - name: 10.43.193.98:5000/admin-server
-  newTag: "native-latest"
+  newTag: "native-040fbd7031897922a811e7debc2c2e47d6c19387"
 
 patches:
 - patch: |-
